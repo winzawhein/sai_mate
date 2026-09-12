@@ -1,0 +1,1252 @@
+import 'dart:developer' as developer;
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'domain/shop_models.dart';
+import 'presentation/shop_controller.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const url = String.fromEnvironment('SUPABASE_URL');
+  const key = String.fromEnvironment('SUPABASE_ANON_KEY');
+  if (url.isNotEmpty && key.isNotEmpty) {
+    await Supabase.initialize(url: url, publishableKey: key);
+  }
+  runApp(const ProviderScope(child: SaiMateApp()));
+}
+
+const ink = Color(0xFF18212B);
+const muted = Color(0xFF71808B);
+const cream = Color(0xFFF7F7F2);
+const green = Color(0xFF1C6D5B);
+const mint = Color(0xFFDFF3E9);
+const orange = Color(0xFFFF9E63);
+const line = Color(0xFFE9EBE5);
+const red = Color(0xFFE96C66);
+
+enum EntryType { sale, purchase, customer, debt, product }
+
+class SaiMateApp extends StatelessWidget {
+  const SaiMateApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    title: 'Sai Mate',
+    theme: ThemeData(
+      useMaterial3: true,
+      scaffoldBackgroundColor: cream,
+      colorScheme: ColorScheme.fromSeed(seedColor: green),
+      fontFamily: 'Noto Sans Myanmar',
+      textTheme: Theme.of(context).textTheme
+          .apply(bodyColor: ink, displayColor: ink),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: line),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: line),
+        ),
+      ),
+    ),
+    home: const AuthGate(),
+  );
+}
+
+class MyApp extends SaiMateApp {
+  const MyApp({super.key});
+}
+
+class AuthGate extends ConsumerWidget {
+  const AuthGate({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authStateProvider);
+    return auth.when(
+      data: (value) =>
+          value.session == null ? const LoginPage() : const AppShell(),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, _) => Scaffold(body: Center(child: Text(e.toString()))),
+    );
+  }
+}
+
+class LoginPage extends ConsumerStatefulWidget {
+  const LoginPage({super.key});
+  @override
+  ConsumerState<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends ConsumerState<LoginPage> {
+  final email = TextEditingController(),
+      password = TextEditingController(),
+      name = TextEditingController(),
+      shop = TextEditingController();
+  final registerProvider = StateProvider.autoDispose<bool>((ref) => false);
+  @override
+  void dispose() {
+    email.dispose();
+    password.dispose();
+    name.dispose();
+    shop.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final register = ref.watch(registerProvider);
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const CircleAvatar(
+                    radius: 34,
+                    backgroundColor: mint,
+                    child: Icon(
+                      Icons.storefront_rounded,
+                      color: green,
+                      size: 34,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    register ? 'ဆိုင်အသစ် ဖွင့်မည်' : 'Sai Mate',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  if (register) ...[
+                    FormFieldBox(controller: name, label: 'အမည်'),
+                    FormFieldBox(controller: shop, label: 'ဆိုင်အမည်'),
+                  ],
+                  FormFieldBox(controller: email, label: 'အီးမေးလ်'),
+                  FormFieldBox(controller: password, label: 'စကားဝှက်'),
+                  const SizedBox(height: 18),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: green,
+                      padding: const EdgeInsets.all(14),
+                    ),
+                    onPressed: () => _submit(register),
+                    child: Text(register ? 'အကောင့်ဖွင့်မည်' : 'ဝင်မည်'),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        ref.read(registerProvider.notifier).state = !register,
+                    child: Text(
+                      register ? 'အကောင့်ရှိပြီးသား' : 'အကောင့်အသစ်ဖွင့်မည်',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submit(bool register) async {
+    try {
+      if (register) {
+        await Supabase.instance.client.auth.signUp(
+          email: email.text.trim(),
+          password: password.text,
+          data: {'full_name': name.text.trim(), 'shop_name': shop.text.trim()},
+        );
+      } else {
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: email.text.trim(),
+          password: password.text,
+        );
+      }
+      ref.invalidate(shopProvider);
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+}
+
+class AppShell extends ConsumerWidget {
+  const AppShell({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tab = ref.watch(tabProvider);
+    return Scaffold(
+      body: IndexedStack(
+        index: tab,
+        children: const [
+          DashboardPage(),
+          InventoryPage(),
+          CustomersPage(),
+          ReportsPage(),
+        ],
+      ),
+      floatingActionButton: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => showEntrySheet(context, EntryType.sale),
+          borderRadius: BorderRadius.circular(19),
+          child: Ink(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: orange,
+              borderRadius: BorderRadius.circular(19),
+              border: Border.all(color: const Color(0xFF5F6969), width: 3),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x330C1C18),
+                  blurRadius: 12,
+                  offset: Offset(0, 7),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 38),
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: line)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 76,
+            child: Row(
+              children: [
+                AppNavItem(
+                  current: tab,
+                  index: 0,
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home,
+                  label: 'ပင်မ',
+                ),
+                AppNavItem(
+                  current: tab,
+                  index: 1,
+                  icon: Icons.inventory_2_outlined,
+                  activeIcon: Icons.inventory_2,
+                  label: 'ပစ္စည်း',
+                ),
+                AppNavItem(
+                  current: tab,
+                  index: 2,
+                  icon: Icons.people_outline,
+                  activeIcon: Icons.people,
+                  label: 'ဖောက်သည်',
+                ),
+                AppNavItem(
+                  current: tab,
+                  index: 3,
+                  icon: Icons.donut_large_outlined,
+                  activeIcon: Icons.donut_large,
+                  label: 'အစီရင်ခံစာ',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AppNavItem extends ConsumerWidget {
+  const AppNavItem({
+    super.key,
+    required this.current,
+    required this.index,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
+  final int current, index;
+  final IconData icon, activeIcon;
+  final String label;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = current == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          ref.read(searchProvider.notifier).state = '';
+          ref.read(tabProvider.notifier).state = index;
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              selected ? activeIcon : icon,
+              color: selected ? green : const Color(0xFF98A29F),
+              size: 23,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? green : const Color(0xFF98A29F),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DashboardPage extends ConsumerWidget {
+  const DashboardPage({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final products = ref.watch(productsProvider);
+    final customers = ref.watch(customersProvider);
+    final shop = ref.watch(shopProvider).valueOrNull;
+    return SafeArea(
+      bottom: false,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: DashboardHeader(
+              shopName: shop?.shopName ?? 'Sai Mate',
+              ownerName: shop?.ownerName ?? '',
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 98),
+            sliver: SliverList.list(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: SummaryCard(
+                        debt: true,
+                        value: shop?.outstandingDebt ?? 0,
+                        count: customers.where((c) => c.debt > 0).length,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 4,
+                      child: SummaryCard(
+                        debt: false,
+                        value: shop?.inventoryValue ?? 0,
+                        count: products.length,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                const SectionTitle('အမြန်လုပ်ဆောင်ရန်'),
+                const SizedBox(height: 8),
+                Row(
+                  children: const [
+                    QuickAction(EntryType.sale, Icons.add, 'ရောင်းမည်'),
+                    QuickAction(EntryType.purchase, Icons.south_west, 'ဝယ်မည်'),
+                    QuickAction(
+                      EntryType.customer,
+                      Icons.person_outline,
+                      'ဖောက်သည်',
+                    ),
+                    QuickAction(EntryType.debt, Icons.history, 'အကြွေး'),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                SectionTitle(
+                  'ပစ္စည်းလက်ကျန်',
+                  action: 'အားလုံးကြည့်ရန် ›',
+                  onTap: () => ref.read(tabProvider.notifier).state = 1,
+                ),
+                const SizedBox(height: 10),
+                AppCard(
+                  child: Column(
+                    children: products.take(3).map(ProductRow.new).toList(),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                SectionTitle(
+                  'မကြာသေးခင် အကြွေးများ',
+                  action: 'စာရင်း ›',
+                  onTap: () => ref.read(tabProvider.notifier).state = 2,
+                ),
+                const SizedBox(height: 10),
+                AppCard(
+                  child: Column(
+                    children: customers.take(2).map(CustomerRow.new).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DashboardHeader extends StatelessWidget {
+  const DashboardHeader({
+    super.key,
+    required this.shopName,
+    required this.ownerName,
+  });
+
+  final String shopName;
+  final String ownerName;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(22, 24, 18, 20),
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [green, Color(0xFF255F54)],
+      ),
+      borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                ownerName.isEmpty ? 'မင်္ဂလာပါ' : 'မင်္ဂလာပါ၊ $ownerName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                shopName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 27,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 14),
+        InkWell(
+          onTap: () => Supabase.instance.client.auth.signOut(),
+          borderRadius: BorderRadius.circular(20),
+          child: const SaiMateLogo(),
+        ),
+      ],
+    ),
+  );
+}
+
+class SaiMateLogo extends StatefulWidget {
+  const SaiMateLogo({super.key});
+
+  @override
+  State<SaiMateLogo> createState() => _SaiMateLogoState();
+}
+
+class _SaiMateLogoState extends State<SaiMateLogo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController animation;
+
+  @override
+  void initState() {
+    super.initState();
+    animation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    animation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: animation,
+    builder: (context, child) {
+      final wave = math.sin(animation.value * math.pi * 2);
+      return Transform.translate(
+        offset: Offset(0, wave * 1.8),
+        child: Transform.scale(
+          scale: 1 + (wave * .018),
+          child: Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(shape: BoxShape.circle),
+            child: ClipOval(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.inventory_2_rounded,
+                    color: Colors.white,
+                    size: 29,
+                  ),
+                  Positioned(
+                    right: 7,
+                    top: 6,
+                    child: Transform.rotate(
+                      angle: animation.value * math.pi * 2,
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Color(0xFFFFC18B),
+                        size: 13,
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    bottom: 3,
+                    child: Text(
+                      'SAI MATE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: null,
+                        fontSize: 5.7,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .55,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class SummaryCard extends StatelessWidget {
+  const SummaryCard({
+    super.key,
+    required this.debt,
+    required this.value,
+    required this.count,
+  });
+  final bool debt;
+  final int value, count;
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 150,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: debt ? mint : const Color(0xFFFFF4E9),
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!debt) const Text('📦', style: TextStyle(fontSize: 23)),
+        if (!debt) const SizedBox(height: 7),
+        Text(
+          debt ? 'ရရန်ရှိငွေ' : 'ပစ္စည်းတန်ဖိုး',
+          style: const TextStyle(
+            color: green,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          '${NumberFormat('#,##0').format(value)} Ks',
+          maxLines: 1,
+          style: TextStyle(
+            color: debt ? ink : const Color(0xFFA65A2A),
+            fontSize: debt ? 20 : 22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          debt ? 'ဖောက်သည် $count ယောက်' : 'ကုန်ပစ္စည်း $count ခု',
+          style: const TextStyle(color: muted, fontSize: 10),
+        ),
+        if (debt)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text(
+              'Supabase live data',
+              style: TextStyle(
+                color: green,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+class SectionTitle extends StatelessWidget {
+  const SectionTitle(this.title, {super.key, this.action, this.onTap});
+  final String title;
+  final String? action;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        title,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      ),
+      if (action != null)
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(3),
+            child: Text(
+              action!,
+              style: const TextStyle(
+                color: green,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+    ],
+  );
+}
+
+class QuickAction extends StatelessWidget {
+  const QuickAction(this.type, this.icon, this.label, {super.key});
+  final EntryType type;
+  final IconData icon;
+  final String label;
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: () => showEntrySheet(context, type),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: line),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x08233228),
+                blurRadius: 10,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: green, size: 20),
+              const SizedBox(height: 5),
+              Text(label, style: const TextStyle(fontSize: 10)),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class AppCard extends StatelessWidget {
+  const AppCard({super.key, required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: line),
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x08233228),
+          blurRadius: 15,
+          offset: Offset(0, 5),
+        ),
+      ],
+    ),
+    child: child,
+  );
+}
+
+class ProductRow extends StatelessWidget {
+  const ProductRow(this.product, {super.key});
+  final Product product;
+  @override
+  Widget build(BuildContext context) {
+    final critical = product.stock <= 5;
+    final low = product.stock <= 10 && !critical;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: line)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9E9DD),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Text(product.emoji, style: const TextStyle(fontSize: 20)),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.name,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${product.sku} · ${product.stock} ခု ကျန်',
+                  style: const TextStyle(color: muted, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: critical
+                  ? const Color(0xFFFFE4DF)
+                  : low
+                  ? const Color(0xFFFFF0CF)
+                  : const Color(0xFFE1F3E9),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              critical
+                  ? 'အရေးကြီး'
+                  : low
+                  ? 'နည်းနေပြီ'
+                  : 'အဆင်ပြေ',
+              style: TextStyle(
+                color: critical
+                    ? const Color(0xFFB84E48)
+                    : low
+                    ? const Color(0xFF9A6A16)
+                    : green,
+                fontSize: 9,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CustomerRow extends StatelessWidget {
+  const CustomerRow(this.customer, {super.key});
+  final Customer customer;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 11),
+    decoration: const BoxDecoration(
+      border: Border(bottom: BorderSide(color: line)),
+    ),
+    child: Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: const Color(0xFFECE9FF),
+          child: Text(
+            customer.name.substring(0, 1),
+            style: const TextStyle(
+              color: Color(0xFF6659B1),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                customer.name,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                customer.note,
+                style: const TextStyle(color: muted, fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          '${customer.debt} Ks',
+          style: const TextStyle(
+            color: red,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class InventoryPage extends ConsumerWidget {
+  const InventoryPage({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(searchProvider).toLowerCase();
+    final items = ref
+        .watch(productsProvider)
+        .where((p) => p.name.toLowerCase().contains(query))
+        .toList();
+    return ListPage(
+      title: 'ပစ္စည်းလက်ကျန်',
+      hint: 'ပစ္စည်းရှာရန်...',
+      count: 'ပစ္စည်းအားလုံး · ${items.length}',
+      onAdd: () => showEntrySheet(context, EntryType.product),
+      child: AppCard(
+        child: Column(children: items.map(ProductRow.new).toList()),
+      ),
+    );
+  }
+}
+
+class CustomersPage extends ConsumerWidget {
+  const CustomersPage({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(searchProvider).toLowerCase();
+    final items = ref
+        .watch(customersProvider)
+        .where((p) => p.name.toLowerCase().contains(query))
+        .toList();
+    return ListPage(
+      title: 'ဖောက်သည်များ',
+      hint: 'ဖောက်သည်ရှာရန်...',
+      count: 'ဖောက်သည် · ${items.length}',
+      onAdd: () => showEntrySheet(context, EntryType.customer),
+      child: AppCard(
+        child: Column(children: items.map(CustomerRow.new).toList()),
+      ),
+    );
+  }
+}
+
+class ListPage extends ConsumerWidget {
+  const ListPage({
+    super.key,
+    required this.title,
+    required this.hint,
+    required this.count,
+    required this.onAdd,
+    required this.child,
+  });
+  final String title, hint, count;
+  final VoidCallback onAdd;
+  final Widget child;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => SafeArea(
+    bottom: false,
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 25, 18, 110),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            onChanged: (v) => ref.read(searchProvider.notifier).state = v,
+            decoration: InputDecoration(
+              hintText: hint,
+              prefixIcon: const Icon(Icons.search),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 18),
+          SectionTitle(count, action: '＋ ထည့်မည်', onTap: onAdd),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    ),
+  );
+}
+
+class ReportsPage extends ConsumerWidget {
+  const ReportsPage({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sales = ref.watch(shopProvider).valueOrNull?.monthlySales ?? 0;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            const Text(
+              'အစီရင်ခံစာ',
+              style: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: mint,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ဒီလ ရောင်းအား',
+                    style: TextStyle(color: green, fontSize: 11),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${NumberFormat('#,##0').format(sales)} Ks',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Supabase live transaction data',
+                    style: TextStyle(
+                      color: green,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void showEntrySheet(BuildContext context, EntryType type) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => EntryFormSheet(type: type),
+  );
+}
+
+class EntryFormSheet extends ConsumerStatefulWidget {
+  const EntryFormSheet({super.key, required this.type});
+  final EntryType type;
+  @override
+  ConsumerState<EntryFormSheet> createState() => _EntryFormSheetState();
+}
+
+class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
+  final first = TextEditingController(),
+      second = TextEditingController(),
+      third = TextEditingController(),
+      fourth = TextEditingController(),
+      fifth = TextEditingController();
+  @override
+  void dispose() {
+    first.dispose();
+    second.dispose();
+    third.dispose();
+    fourth.dispose();
+    fifth.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shop = ref.watch(shopProvider).valueOrNull;
+    final title = {
+      EntryType.sale: 'ရောင်းချမှု မှတ်တမ်း',
+      EntryType.purchase: 'ဝယ်ယူမှု မှတ်တမ်း',
+      EntryType.customer: 'ဖောက်သည်အသစ်',
+      EntryType.debt: 'အကြွေး မှတ်တမ်း',
+      EntryType.product: 'ပစ္စည်းအသစ်',
+    }[widget.type]!;
+    final productFlow =
+        widget.type == EntryType.sale || widget.type == EntryType.purchase;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
+        decoration: const BoxDecoration(
+          color: cream,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (productFlow)
+                SelectField(
+                  label: 'ပစ္စည်း',
+                  items: shop?.products ?? const [],
+                  onChanged: (v) =>
+                      ref.read(selectedProductProvider.notifier).state = v,
+                ),
+              if (widget.type == EntryType.debt)
+                CustomerSelect(
+                  items: shop?.customers ?? const [],
+                  onChanged: (v) =>
+                      ref.read(selectedCustomerProvider.notifier).state = v,
+                ),
+              if (widget.type == EntryType.customer) ...[
+                FormFieldBox(controller: first, label: 'အမည်'),
+                FormFieldBox(controller: second, label: 'ဖုန်းနံပါတ်'),
+              ],
+              if (widget.type == EntryType.product) ...[
+                FormFieldBox(controller: first, label: 'ပစ္စည်းအမည်'),
+                FormFieldBox(controller: second, label: 'SKU'),
+                FormFieldBox(
+                  controller: third,
+                  label: 'ဝယ်စျေး',
+                  numeric: true,
+                ),
+                FormFieldBox(
+                  controller: fourth,
+                  label: 'ရောင်းစျေး',
+                  numeric: true,
+                ),
+                FormFieldBox(
+                  controller: fifth,
+                  label: 'စတင်လက်ကျန် အရေအတွက်',
+                  numeric: true,
+                ),
+              ],
+              if (productFlow || widget.type == EntryType.debt)
+                FormFieldBox(
+                  controller: first,
+                  label: widget.type == EntryType.debt
+                      ? 'အကြွေးပမာဏ'
+                      : 'အရေအတွက်',
+                  numeric: true,
+                ),
+              const SizedBox(height: 17),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: green,
+                    padding: const EdgeInsets.all(13),
+                  ),
+                  onPressed: _save,
+                  child: const Text('သိမ်းမည်'),
+                ),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'ပယ်ဖျက်မည်',
+                    style: TextStyle(color: muted),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final c = ref.read(shopProvider.notifier),
+          qty = int.tryParse(first.text) ?? 0;
+      final selectedProduct = ref.read(selectedProductProvider);
+      final selectedCustomer = ref.read(selectedCustomerProvider);
+      if ((widget.type == EntryType.sale ||
+              widget.type == EntryType.purchase) &&
+          (selectedProduct == null || selectedProduct.isEmpty)) {
+        throw const FormatException('ပစ္စည်းတစ်ခု ရွေးချယ်ပါ');
+      }
+      if (widget.type == EntryType.debt &&
+          (selectedCustomer == null || selectedCustomer.isEmpty)) {
+        throw const FormatException('ဖောက်သည်တစ်ဦး ရွေးချယ်ပါ');
+      }
+      if ((widget.type == EntryType.sale ||
+              widget.type == EntryType.purchase ||
+              widget.type == EntryType.debt) &&
+          qty <= 0) {
+        throw const FormatException('အရေအတွက်သည် 0 ထက် ကြီးရမည်');
+      }
+      switch (widget.type) {
+        case EntryType.customer:
+          await c.addCustomer(first.text, second.text);
+        case EntryType.product:
+          await c.addProduct(
+            name: first.text,
+            sku: second.text,
+            cost: int.tryParse(third.text) ?? 0,
+            price: int.tryParse(fourth.text) ?? 0,
+            stock: int.tryParse(fifth.text) ?? 0,
+          );
+        case EntryType.sale:
+          await c.sell(productId: selectedProduct!, quantity: qty);
+        case EntryType.purchase:
+          await c.purchase(productId: selectedProduct!, quantity: qty);
+        case EntryType.debt:
+          await c.addDebt(customerId: selectedCustomer!, amount: qty);
+      }
+      if (mounted) {
+        ref.read(selectedProductProvider.notifier).state = null;
+        ref.read(selectedCustomerProvider.notifier).state = null;
+        Navigator.of(context).pop();
+        messenger.showSnackBar(
+          const SnackBar(content: Text('သိမ်းဆည်းပြီးပါပြီ ✓')),
+        );
+      }
+    } catch (error) {
+      developer.log('Form save failed', name: 'SaiMate.UI', error: error);
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('သိမ်းဆည်းမှု မအောင်မြင်ပါ: $error')),
+        );
+      }
+    }
+  }
+}
+
+class FormFieldBox extends StatelessWidget {
+  const FormFieldBox({
+    super.key,
+    required this.controller,
+    required this.label,
+    this.numeric = false,
+  });
+  final TextEditingController controller;
+  final String label;
+  final bool numeric;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: TextField(
+      controller: controller,
+      keyboardType: numeric ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(labelText: label),
+    ),
+  );
+}
+
+class SelectField extends StatelessWidget {
+  const SelectField({
+    super.key,
+    required this.label,
+    required this.items,
+    required this.onChanged,
+  });
+  final String label;
+  final List<Product> items;
+  final ValueChanged<String?> onChanged;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: DropdownButtonFormField<String>(
+      decoration: InputDecoration(labelText: label),
+      items: items
+          .map((x) => DropdownMenuItem(value: x.id, child: Text(x.name)))
+          .toList(),
+      onChanged: onChanged,
+    ),
+  );
+}
+
+class CustomerSelect extends StatelessWidget {
+  const CustomerSelect({
+    super.key,
+    required this.items,
+    required this.onChanged,
+  });
+  final List<Customer> items;
+  final ValueChanged<String?> onChanged;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: DropdownButtonFormField<String>(
+      decoration: const InputDecoration(labelText: 'ဖောက်သည်'),
+      items: items
+          .map((x) => DropdownMenuItem(value: x.id, child: Text(x.name)))
+          .toList(),
+      onChanged: onChanged,
+    ),
+  );
+}
