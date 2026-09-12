@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'shop_models.dart';
 
 abstract interface class ShopRepository {
@@ -23,7 +25,16 @@ abstract interface class TransactionalShopRepository {
 }
 
 abstract interface class ProductCrudRepository {
-  Future<void> createProduct(Product product);
+  Future<void> createProduct(
+    Product product, {
+    Uint8List? imageBytes,
+    String? imageExtension,
+  });
+  Future<void> updateProductImage(
+    Product product, {
+    required Uint8List imageBytes,
+    required String imageExtension,
+  });
 }
 
 abstract interface class CustomerDebtCrudRepository {

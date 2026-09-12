@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/in_memory_shop_repository.dart';
 import '../data/supabase_shop_repository.dart';
@@ -44,6 +46,8 @@ class ShopController extends AsyncNotifier<ShopState> {
     required int cost,
     required int price,
     required int stock,
+    Uint8List? imageBytes,
+    String? imageExtension,
   }) async {
     final s = state.requireValue;
     final product = Product(
@@ -56,7 +60,11 @@ class ShopController extends AsyncNotifier<ShopState> {
       lowStockLimit: 5,
     );
     if (_repo case ProductCrudRepository crud) {
-      await crud.createProduct(product);
+      await crud.createProduct(
+        product,
+        imageBytes: imageBytes,
+        imageExtension: imageExtension,
+      );
       state = AsyncData(await _repo.load());
       return;
     }
@@ -72,6 +80,21 @@ class ShopController extends AsyncNotifier<ShopState> {
       return;
     }
     await _commit(s.copyWith(customers: [...s.customers, customer]));
+  }
+
+  Future<void> updateProductImage({
+    required Product product,
+    required Uint8List imageBytes,
+    required String imageExtension,
+  }) async {
+    if (_repo case ProductCrudRepository crud) {
+      await crud.updateProductImage(
+        product,
+        imageBytes: imageBytes,
+        imageExtension: imageExtension,
+      );
+      state = AsyncData(await _repo.load());
+    }
   }
 
   Future<void> addSupplier(String name, String phone) async {

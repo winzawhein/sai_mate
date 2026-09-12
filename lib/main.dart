@@ -1,9 +1,12 @@
 import 'dart:developer' as developer;
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'domain/shop_models.dart';
@@ -30,6 +33,37 @@ const red = Color(0xFFE96C66);
 
 enum EntryType { sale, purchase, customer, debt, product }
 
+abstract final class AppErrorMessage {
+  static String from(Object error) {
+    if (error is FormatException) return error.message.toString();
+    if (error is AuthException) return error.message;
+    if (error is PlatformException && error.code == 'channel-error') {
+      return 'ပုံရွေးစနစ် စတင်၍မရသေးပါ။ App ကိုပိတ်ပြီး ပြန်ဖွင့်ပါ။';
+    }
+    if (error is PostgrestException) {
+      final message = error.message.toLowerCase();
+      if (message.contains('insufficient stock')) {
+        return 'ပစ္စည်းလက်ကျန် မလုံလောက်ပါ။ လက်ကျန်ပမာဏကို စစ်ဆေးပါ။';
+      }
+      if (error.code == '23505' && message.contains('sku')) {
+        return 'ဤ SKU နံပါတ်ကို အသုံးပြုပြီးသား ဖြစ်ပါသည်။';
+      }
+      if (error.code == 'PGRST202') {
+        return 'Supabase လုပ်ဆောင်ချက် မပြည့်စုံသေးပါ။ Database setup ကို စစ်ဆေးပါ။';
+      }
+      return 'အချက်အလက် သိမ်းဆည်း၍ မရပါ။ ${error.message}';
+    }
+    final message = error.toString();
+    if (message.contains('SocketException') ||
+        message.contains('Connection refused')) {
+      return 'အင်တာနက် သို့မဟုတ် Supabase ချိတ်ဆက်မှုကို စစ်ဆေးပါ။';
+    }
+    return message
+        .replaceFirst('Bad state: ', '')
+        .replaceFirst('FormatException: ', '');
+  }
+}
+
 class SaiMateApp extends StatelessWidget {
   const SaiMateApp({super.key});
   @override
@@ -41,8 +75,9 @@ class SaiMateApp extends StatelessWidget {
       scaffoldBackgroundColor: cream,
       colorScheme: ColorScheme.fromSeed(seedColor: green),
       fontFamily: 'Noto Sans Myanmar',
-      textTheme: Theme.of(context).textTheme
-          .apply(bodyColor: ink, displayColor: ink),
+      textTheme: Theme.of(
+        context,
+      ).textTheme.apply(bodyColor: ink, displayColor: ink),
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
@@ -189,8 +224,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ref.invalidate(shopProvider);
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -730,16 +766,7 @@ class ProductRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9E9DD),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Text(product.emoji, style: const TextStyle(fontSize: 20)),
-          ),
+          ProductThumbnail(product: product),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -790,6 +817,197 @@ class ProductRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class ProductThumbnail extends ConsumerWidget {
+  const ProductThumbnail({super.key, required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => InkWell(
+    onTap: () async {
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        final selection = await ProductImagePicker.pick();
+        if (selection == null || !context.mounted) return;
+        await ref
+            .read(shopProvider.notifier)
+            .updateProductImage(
+              product: product,
+              imageBytes: selection.bytes,
+              imageExtension: selection.extension,
+            );
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('ပစ္စည်းပုံ ပြောင်းပြီးပါပြီ ✓'),
+            backgroundColor: green,
+          ),
+        );
+      } catch (error) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(AppErrorMessage.from(error)),
+            backgroundColor: const Color(0xFF9F3A36),
+          ),
+        );
+      }
+    },
+    borderRadius: BorderRadius.circular(14),
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9E9DD),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: product.imageUrl == null
+              ? const ProductImageFallback()
+              : Image.network(
+                  product.imageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const ProductImageFallback(),
+                ),
+        ),
+        Positioned(
+          right: -3,
+          bottom: -3,
+          child: Container(
+            width: 17,
+            height: 17,
+            decoration: BoxDecoration(
+              color: green,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+            child: const Icon(
+              Icons.camera_alt_rounded,
+              color: Colors.white,
+              size: 9,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class ProductImageFallback extends StatelessWidget {
+  const ProductImageFallback({super.key});
+
+  @override
+  Widget build(BuildContext context) => const DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFFFF0E5), Color(0xFFF7D9C4)],
+      ),
+    ),
+    child: Center(
+      child: Icon(
+        Icons.inventory_2_rounded,
+        color: Color(0xFFC87943),
+        size: 25,
+      ),
+    ),
+  );
+}
+
+class ProductImageSelection {
+  const ProductImageSelection({required this.bytes, required this.extension});
+
+  final Uint8List bytes;
+  final String extension;
+}
+
+abstract final class ProductImagePicker {
+  static Future<ProductImageSelection?> pick() async {
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1400,
+    );
+    if (image == null) return null;
+    return ProductImageSelection(
+      bytes: await image.readAsBytes(),
+      extension: image.name.split('.').last.toLowerCase(),
+    );
+  }
+}
+
+class ProductImagePickerField extends StatelessWidget {
+  const ProductImagePickerField({
+    super.key,
+    required this.selection,
+    required this.onTap,
+  });
+
+  final ProductImageSelection? selection;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 92,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: line),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 70,
+              height: 70,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9E9DD),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: selection == null
+                  ? const ProductImageFallback()
+                  : Image.memory(selection!.bytes, fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    selection == null
+                        ? 'ပစ္စည်းပုံ ထည့်မည်'
+                        : 'ပုံရွေးပြီးပါပြီ',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Gallery မှ ပုံရွေးရန် နှိပ်ပါ',
+                    style: TextStyle(color: muted, fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.add_photo_alternate_rounded, color: green),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class CustomerRow extends StatelessWidget {
@@ -1012,6 +1230,8 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
       third = TextEditingController(),
       fourth = TextEditingController(),
       fifth = TextEditingController();
+  final productImageProvider =
+      StateProvider.autoDispose<ProductImageSelection?>((ref) => null);
   @override
   void dispose() {
     first.dispose();
@@ -1025,6 +1245,7 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
   @override
   Widget build(BuildContext context) {
     final shop = ref.watch(shopProvider).valueOrNull;
+    final productImage = ref.watch(productImageProvider);
     final title = {
       EntryType.sale: 'ရောင်းချမှု မှတ်တမ်း',
       EntryType.purchase: 'ဝယ်ယူမှု မှတ်တမ်း',
@@ -1072,6 +1293,10 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
                 FormFieldBox(controller: second, label: 'ဖုန်းနံပါတ်'),
               ],
               if (widget.type == EntryType.product) ...[
+                ProductImagePickerField(
+                  selection: productImage,
+                  onTap: _pickProductImage,
+                ),
                 FormFieldBox(controller: first, label: 'ပစ္စည်းအမည်'),
                 FormFieldBox(controller: second, label: 'SKU'),
                 FormFieldBox(
@@ -1129,6 +1354,8 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
 
   Future<void> _save() async {
     final messenger = ScaffoldMessenger.of(context);
+    var succeeded = false;
+    var resultMessage = 'သိမ်းဆည်းပြီးပါပြီ ✓';
     try {
       final c = ref.read(shopProvider.notifier),
           qty = int.tryParse(first.text) ?? 0;
@@ -1159,6 +1386,8 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
             cost: int.tryParse(third.text) ?? 0,
             price: int.tryParse(fourth.text) ?? 0,
             stock: int.tryParse(fifth.text) ?? 0,
+            imageBytes: ref.read(productImageProvider)?.bytes,
+            imageExtension: ref.read(productImageProvider)?.extension,
           );
         case EntryType.sale:
           await c.sell(productId: selectedProduct!, quantity: qty);
@@ -1167,21 +1396,47 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
         case EntryType.debt:
           await c.addDebt(customerId: selectedCustomer!, amount: qty);
       }
-      if (mounted) {
-        ref.read(selectedProductProvider.notifier).state = null;
-        ref.read(selectedCustomerProvider.notifier).state = null;
-        Navigator.of(context).pop();
-        messenger.showSnackBar(
-          const SnackBar(content: Text('သိမ်းဆည်းပြီးပါပြီ ✓')),
-        );
-      }
+      succeeded = true;
     } catch (error) {
       developer.log('Form save failed', name: 'SaiMate.UI', error: error);
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('သိမ်းဆည်းမှု မအောင်မြင်ပါ: $error')),
-        );
-      }
+      resultMessage = AppErrorMessage.from(error);
+    }
+    if (!mounted) return;
+    ref.read(selectedProductProvider.notifier).state = null;
+    ref.read(selectedCustomerProvider.notifier).state = null;
+    Navigator.of(context).pop();
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(resultMessage),
+          backgroundColor: succeeded ? green : const Color(0xFF9F3A36),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: succeeded ? 2 : 4),
+        ),
+      );
+  }
+
+  Future<void> _pickProductImage() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final selection = await ProductImagePicker.pick();
+      if (selection == null || !mounted) return;
+      ref.read(productImageProvider.notifier).state = selection;
+    } catch (error, stack) {
+      developer.log(
+        'Image picker failed',
+        name: 'SaiMate.UI',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(AppErrorMessage.from(error)),
+          backgroundColor: const Color(0xFF9F3A36),
+        ),
+      );
     }
   }
 }

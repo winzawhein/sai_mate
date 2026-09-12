@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -30,17 +31,79 @@ class SupabaseShopRepository
   }
 
   @override
-  Future<void> createProduct(Product p) async {
-    await client.from('products').insert({
-      'id': p.id,
-      'shop_id': await _shop(),
-      'name': p.name,
-      'sku': p.sku.isEmpty ? null : p.sku,
-      'cost_price': p.costPrice,
-      'sale_price': p.salePrice,
-      'stock_quantity': p.stock,
-      'low_stock_limit': p.lowStockLimit,
-    });
+  Future<void> createProduct(
+    Product p, {
+    Uint8List? imageBytes,
+    String? imageExtension,
+  }) async {
+    final shopId = await _shop();
+    String? imagePath;
+    if (imageBytes != null) {
+      final extension = _safeImageExtension(imageExtension);
+      imagePath = '$shopId/${p.id}.$extension';
+      await client.storage
+          .from('product-images')
+          .uploadBinary(
+            imagePath,
+            imageBytes,
+            fileOptions: FileOptions(
+              contentType: extension == 'png' ? 'image/png' : 'image/jpeg',
+              upsert: false,
+            ),
+          );
+    }
+    try {
+      await client.from('products').insert({
+        'id': p.id,
+        'shop_id': shopId,
+        'name': p.name,
+        'sku': p.sku.isEmpty ? null : p.sku,
+        'cost_price': p.costPrice,
+        'sale_price': p.salePrice,
+        'stock_quantity': p.stock,
+        'low_stock_limit': p.lowStockLimit,
+        'image_path': imagePath,
+      });
+    } catch (_) {
+      if (imagePath != null) {
+        await client.storage.from('product-images').remove([imagePath]);
+      }
+      rethrow;
+    }
+  }
+
+  String _safeImageExtension(String? value) {
+    final extension = value?.toLowerCase().replaceAll('.', '');
+    return extension == 'png' ? 'png' : 'jpg';
+  }
+
+  @override
+  Future<void> updateProductImage(
+    Product product, {
+    required Uint8List imageBytes,
+    required String imageExtension,
+  }) async {
+    final shopId = await _shop();
+    final extension = _safeImageExtension(imageExtension);
+    final imagePath = '$shopId/${product.id}.$extension';
+    await client.storage
+        .from('product-images')
+        .uploadBinary(
+          imagePath,
+          imageBytes,
+          fileOptions: FileOptions(
+            contentType: extension == 'png' ? 'image/png' : 'image/jpeg',
+            upsert: true,
+          ),
+        );
+    await client
+        .from('products')
+        .update({'image_path': imagePath})
+        .eq('id', product.id)
+        .eq('shop_id', shopId);
+    if (product.imagePath != null && product.imagePath != imagePath) {
+      await client.storage.from('product-images').remove([product.imagePath!]);
+    }
   }
 
   @override
@@ -208,10 +271,22 @@ class SupabaseShopRepository
     ]);
     final shopRow = results[0] as Map<String, dynamic>;
     final profileRow = results[1] as Map<String, dynamic>;
+    final productRows = (results[2] as List).cast<Map<String, dynamic>>();
+    final products = await Future.wait(
+      productRows.map((row) async {
+        final imagePath = row['image_path'] as String?;
+        if (imagePath != null && imagePath.isNotEmpty) {
+          row['_image_url'] = await client.storage
+              .from('product-images')
+              .createSignedUrl(imagePath, 3600);
+        }
+        return Product.fromJson(row);
+      }),
+    );
     return ShopState(
       shopName: shopRow['name'] as String? ?? 'Sai Mate',
       ownerName: profileRow['full_name'] as String? ?? '',
-      products: (results[2] as List).map((e) => Product.fromJson(e)).toList(),
+      products: products,
       customers: (results[3] as List).map((e) => Customer.fromJson(e)).toList(),
       suppliers: (results[4] as List).map((e) => Supplier.fromJson(e)).toList(),
       debts: (results[5] as List).map((e) => Debt.fromJson(e)).toList(),

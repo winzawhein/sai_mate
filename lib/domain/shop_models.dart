@@ -10,8 +10,11 @@ class Product {
     required this.salePrice,
     required this.lowStockLimit,
     this.category = 'General',
+    this.imagePath,
+    this.imageUrl,
   });
   final String id, name, sku, category;
+  final String? imagePath, imageUrl;
   final int stock, costPrice, salePrice, lowStockLimit;
   String get emoji => category == 'Beauty'
       ? '🧴'
@@ -29,6 +32,8 @@ class Product {
     salePrice: salePrice,
     lowStockLimit: lowStockLimit,
     category: category,
+    imagePath: imagePath,
+    imageUrl: imageUrl,
   );
   factory Product.fromJson(Map<String, dynamic> j) => Product(
     id: j['id'] as String,
@@ -41,6 +46,8 @@ class Product {
     category:
         (j['categories'] as Map<String, dynamic>?)?['name'] as String? ??
         'General',
+    imagePath: j['image_path'] as String?,
+    imageUrl: j['_image_url'] as String?,
   );
 }
 
