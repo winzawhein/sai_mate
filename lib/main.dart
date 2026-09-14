@@ -73,15 +73,14 @@ class SaiMateApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'Sai Mate',
+    title: 'ဆိုင်မိတ်',
     theme: ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: cream,
       colorScheme: ColorScheme.fromSeed(seedColor: green),
       fontFamily: 'Noto Sans Myanmar',
-      textTheme: Theme.of(
-        context,
-      ).textTheme.apply(bodyColor: ink, displayColor: ink),
+      textTheme: Theme.of(context).textTheme
+          .apply(bodyColor: ink, displayColor: ink),
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
@@ -228,9 +227,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ref.invalidate(shopProvider);
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -383,6 +381,12 @@ class DashboardPage extends ConsumerWidget {
             child: DashboardHeader(
               shopName: shop?.shopName ?? 'Sai Mate',
               ownerName: shop?.ownerName ?? '',
+              onAccountTap: () => showAccountSheet(
+                context,
+                ref,
+                shopName: shop?.shopName ?? 'Sai Mate',
+                ownerName: shop?.ownerName ?? '',
+              ),
             ),
           ),
           SliverPadding(
@@ -463,10 +467,12 @@ class DashboardHeader extends StatelessWidget {
     super.key,
     required this.shopName,
     required this.ownerName,
+    required this.onAccountTap,
   });
 
   final String shopName;
   final String ownerName;
+  final VoidCallback onAccountTap;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -508,14 +514,112 @@ class DashboardHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 14),
-        InkWell(
-          onTap: () => Supabase.instance.client.auth.signOut(),
-          borderRadius: BorderRadius.circular(20),
-          child: const SaiMateLogo(),
+        Tooltip(
+          message: 'အကောင့်နှင့် ထွက်ရန်',
+          child: Semantics(
+            button: true,
+            label: 'အကောင့်နှင့် ထွက်ရန်',
+            child: InkWell(
+              onTap: onAccountTap,
+              borderRadius: BorderRadius.circular(20),
+              child: const SaiMateLogo(),
+            ),
+          ),
         ),
       ],
     ),
   );
+}
+
+Future<void> showAccountSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required String shopName,
+  required String ownerName,
+}) async {
+  final user = Supabase.instance.client.auth.currentUser;
+  final shouldLogout = await showModalBottomSheet<bool>(
+    context: context,
+    showDragHandle: true,
+    useSafeArea: true,
+    backgroundColor: cream,
+    builder: (sheetContext) => Padding(
+      padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Icon(Icons.storefront_rounded, color: green, size: 42),
+          const SizedBox(height: 10),
+          Text(
+            shopName,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          ),
+          if (ownerName.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(ownerName, textAlign: TextAlign.center),
+          ],
+          if (user?.email case final email?) ...[
+            const SizedBox(height: 3),
+            Text(
+              email,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: muted, fontSize: 13),
+            ),
+          ],
+          const SizedBox(height: 22),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: red,
+              side: const BorderSide(color: red),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: sheetContext,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('အကောင့်မှ ထွက်မည်လား'),
+                  content: const Text(
+                    'နောက်တစ်ကြိမ် အသုံးပြုရန် အီးမေးလ်နှင့် စကားဝှက်ဖြင့် ပြန်ဝင်ရပါမည်။',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('မထွက်သေးပါ'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: red),
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: const Text('ထွက်မည်'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true && sheetContext.mounted) {
+                Navigator.pop(sheetContext, true);
+              }
+            },
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('အကောင့်မှ ထွက်မည်'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (shouldLogout != true) return;
+  try {
+    ref.read(tabProvider.notifier).state = 0;
+    ref.read(searchProvider.notifier).state = '';
+    ref.invalidate(shopProvider);
+    await Supabase.instance.client.auth.signOut();
+  } on AuthException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('အကောင့်မှ ထွက်၍မရပါ။ ${error.message}')),
+      );
+    }
+  }
 }
 
 class SaiMateLogo extends StatefulWidget {

@@ -15,6 +15,10 @@ final reportPeriodProvider = StateProvider<ReportPeriod>(
 final transactionHistoryProvider = FutureProvider<List<TransactionRecord>>((
   ref,
 ) async {
+  // A completed sale or purchase refreshes shopProvider. Watching it here
+  // invalidates the cached history immediately, even while this tab remains
+  // mounted inside the app's IndexedStack.
+  ref.watch(shopProvider);
   final repo = ref.watch(repositoryProvider);
   if (repo is! HistoryRepository) return const [];
   return (repo as HistoryRepository).loadTransactions();
