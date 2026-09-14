@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../domain/shop_models.dart';
 import '../domain/shop_repository.dart';
 import 'shop_controller.dart';
@@ -191,46 +192,64 @@ class TransactionTile extends ConsumerWidget {
   const TransactionTile({super.key, required this.record});
   final TransactionRecord record;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Card(
-    child: ExpansionTile(
-      leading: CircleAvatar(
-        backgroundColor: (record.sale ? _green : _orange).withValues(
-          alpha: .14,
-        ),
-        child: Icon(
-          record.sale ? Icons.north_east : Icons.south_west,
-          color: record.sale ? _green : _orange,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(22),
+      side: BorderSide(
+        color: Colors.white.withValues(
+          alpha: Theme.of(context).brightness == Brightness.dark ? .12 : .6,
         ),
       ),
-      title: Text(
-        record.sale ? 'အရောင်း' : 'အဝယ်',
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        '${DateFormat('dd MMM yyyy, HH:mm').format(record.createdAt.toLocal())}${record.partyName == null ? '' : ' · ${record.partyName}'}',
-      ),
-      trailing: Text(
-        '${NumberFormat('#,##0').format(record.total)} Ks',
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      ),
-      children: record.lines
-          .map(
-            (line) => ListTile(
-              title: Text(line.name),
-              subtitle: Text(
-                '${line.quantity} × ${NumberFormat('#,##0').format(line.unitPrice)}',
-              ),
-              trailing: record.sale
-                  ? TextButton(
-                      onPressed: () => _return(context, ref, line),
-                      child: const Text('ပြန်အပ်'),
-                    )
-                  : null,
+    );
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      shape: shape,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          shape: shape,
+          collapsedShape: shape,
+          leading: CircleAvatar(
+            backgroundColor: (record.sale ? _green : _orange).withValues(
+              alpha: .14,
             ),
-          )
-          .toList(),
-    ),
-  );
+            child: Icon(
+              record.sale ? Icons.north_east : Icons.south_west,
+              color: record.sale ? _green : _orange,
+            ),
+          ),
+          title: Text(
+            record.sale ? 'အရောင်း' : 'အဝယ်',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            '${DateFormat('dd MMM yyyy, HH:mm').format(record.createdAt.toLocal())}${record.partyName == null ? '' : ' · ${record.partyName}'}',
+          ),
+          trailing: Text(
+            '${NumberFormat('#,##0').format(record.total)} Ks',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          children: record.lines
+              .map(
+                (line) => ListTile(
+                  title: Text(line.name),
+                  subtitle: Text(
+                    '${line.quantity} × ${NumberFormat('#,##0').format(line.unitPrice)}',
+                  ),
+                  trailing: record.sale
+                      ? TextButton(
+                          onPressed: () => _return(context, ref, line),
+                          child: const Text('ပြန်အပ်'),
+                        )
+                      : null,
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+
   Future<void> _return(
     BuildContext context,
     WidgetRef ref,
@@ -256,9 +275,8 @@ class TransactionTile extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }

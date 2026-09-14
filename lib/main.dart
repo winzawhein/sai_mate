@@ -97,8 +97,9 @@ class SaiMateApp extends ConsumerWidget {
       ),
       fontFamily: 'Noto Sans Myanmar',
       cardTheme: CardThemeData(
-        color: Colors.white,
-        elevation: 0,
+        color: Colors.white.withValues(alpha: .58),
+        elevation: 10,
+        shadowColor: const Color(0x29134A40),
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
@@ -107,7 +108,7 @@ class SaiMateApp extends ConsumerWidget {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Colors.white.withValues(alpha: .62),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
           borderSide: const BorderSide(color: line),
@@ -116,6 +117,15 @@ class SaiMateApp extends ConsumerWidget {
           borderRadius: BorderRadius.circular(13),
           borderSide: const BorderSide(color: line),
         ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white.withValues(alpha: .9),
+        elevation: 18,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        modalBarrierColor: Color(0x660A201B),
+        showDragHandle: true,
       ),
     ),
     darkTheme: ThemeData(
@@ -129,8 +139,9 @@ class SaiMateApp extends ConsumerWidget {
       ),
       fontFamily: 'Noto Sans Myanmar',
       cardTheme: CardThemeData(
-        color: const Color(0xFF172522),
-        elevation: 0,
+        color: const Color(0xFF29413B).withValues(alpha: .54),
+        elevation: 12,
+        shadowColor: const Color(0x99000000),
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
@@ -139,7 +150,7 @@ class SaiMateApp extends ConsumerWidget {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF172522),
+        fillColor: const Color(0xFF29413B).withValues(alpha: .5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
           borderSide: const BorderSide(color: Color(0xFF29403A)),
@@ -148,6 +159,15 @@ class SaiMateApp extends ConsumerWidget {
           borderRadius: BorderRadius.circular(13),
           borderSide: const BorderSide(color: Color(0xFF29403A)),
         ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: const Color(0xFF172522).withValues(alpha: .94),
+        elevation: 24,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        modalBarrierColor: Color(0xAA020806),
+        showDragHandle: true,
       ),
     ),
     home: const AuthGate(),
@@ -299,6 +319,32 @@ class AppShell extends ConsumerWidget {
       extendBody: true,
       body: Stack(
         children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: dark
+                      ? const [Color(0xFF07110F), Color(0xFF13312B)]
+                      : const [Color(0xFFF9FAF6), Color(0xFFDFF2EC)],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -90,
+            top: 170,
+            child: _AmbientOrb(
+              color: const Color(0xFF43C6A8).withValues(alpha: .2),
+              size: 230,
+            ),
+          ),
+          Positioned(
+            right: -80,
+            bottom: 130,
+            child: _AmbientOrb(color: orange.withValues(alpha: .15), size: 210),
+          ),
           IndexedStack(
             index: tab,
             children: const [
@@ -309,10 +355,9 @@ class AppShell extends ConsumerWidget {
             ],
           ),
           Positioned(
-            top: MediaQuery.paddingOf(context).top + 8,
-            left: 0,
-            right: 0,
-            child: Center(child: ConnectionBadge(online: online)),
+            top: MediaQuery.paddingOf(context).top,
+            right: 1,
+            child: ConnectionBadge(online: online),
           ),
         ],
       ),
@@ -402,6 +447,24 @@ class AppShell extends ConsumerWidget {
   }
 }
 
+class _AmbientOrb extends StatelessWidget {
+  const _AmbientOrb({required this.color, required this.size});
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: ImageFiltered(
+      imageFilter: ImageFilter.blur(sigmaX: 46, sigmaY: 46),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+    ),
+  );
+}
+
 class ConnectionBadge extends StatelessWidget {
   const ConnectionBadge({super.key, required this.online});
   final bool online;
@@ -409,38 +472,29 @@ class ConnectionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ClipRRect(
     borderRadius: BorderRadius.circular(18),
-    child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-        decoration: BoxDecoration(
-          color: (online ? green : const Color(0xFF8B4A35)).withValues(
-            alpha: .82,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 350),
+      width: 48,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+            color: Colors.green,
+            size: 17,
           ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: .28)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              online ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-              color: Colors.white,
-              size: 15,
+          const SizedBox(height: 2),
+          Text(
+            online ? 'Online' : 'Offline',
+            style: const TextStyle(
+              color: Colors.green,
+              fontFamily: null,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(width: 5),
-            Text(
-              online ? 'Online' : 'Offline',
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: null,
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     ),
   );
@@ -863,10 +917,24 @@ class SummaryCard extends StatelessWidget {
     height: 150,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Theme.of(context).brightness == Brightness.dark
-          ? (debt ? const Color(0xFF15362F) : const Color(0xFF392A20))
-          : (debt ? mint : const Color(0xFFFFF4E9)),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: Theme.of(context).brightness == Brightness.dark
+            ? const [Color(0xA63B6C61), Color(0x59314D47)]
+            : (debt
+                  ? const [Color(0xE8FFFFFF), Color(0x91BCEADA)]
+                  : const [Color(0xE8FFFFFF), Color(0x99FFE1C8)]),
+      ),
+      border: Border.all(color: Colors.white.withValues(alpha: .7)),
       borderRadius: BorderRadius.circular(18),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x24124C40),
+          blurRadius: 24,
+          offset: Offset(0, 10),
+        ),
+      ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,8 +1028,15 @@ class QuickAction extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: appCardColor(context),
-            border: Border.all(color: appLineColor(context)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: .66),
+                appCardColor(context).withValues(alpha: .34),
+              ],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: .68)),
             borderRadius: BorderRadius.circular(15),
             boxShadow: const [
               BoxShadow(
@@ -988,21 +1063,38 @@ class AppCard extends StatelessWidget {
   const AppCard({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    decoration: BoxDecoration(
-      color: appCardColor(context),
-      border: Border.all(color: appLineColor(context)),
-      borderRadius: BorderRadius.circular(18),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x08233228),
-          blurRadius: 15,
-          offset: Offset(0, 5),
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(22),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? .19
+                    : .60,
+              ),
+              appCardColor(context).withValues(alpha: .28),
+            ],
+          ),
+          border: Border.all(color: Colors.white.withValues(alpha: .62)),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x26113F36),
+              blurRadius: 28,
+              offset: Offset(0, 12),
+            ),
+          ],
         ),
-      ],
+        child: child,
+      ),
     ),
-    child: child,
   );
 }
 
