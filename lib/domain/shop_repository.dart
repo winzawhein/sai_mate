@@ -8,6 +8,17 @@ abstract interface class ShopRepository {
 }
 
 abstract interface class TransactionalShopRepository {
+  Future<void> createSaleCart({
+    required List<CartLine> items,
+    String? customerId,
+    bool debt = false,
+    int discount = 0,
+    String paymentMethod = 'cash',
+  });
+  Future<void> createPurchaseCart({
+    required List<CartLine> items,
+    String? supplierId,
+  });
   Future<void> createSale({
     required String productId,
     required int quantity,
@@ -41,4 +52,20 @@ abstract interface class CustomerDebtCrudRepository {
   Future<void> createCustomer(Customer customer);
   Future<void> createSupplier(Supplier supplier);
   Future<void> createDebt(Debt debt);
+}
+
+abstract interface class RecordManagementRepository {
+  Future<void> updateProduct(Product product);
+  Future<void> deleteProduct(Product product);
+  Future<void> updateCustomer(Customer customer);
+  Future<void> deleteCustomer(Customer customer);
+}
+
+abstract interface class HistoryRepository {
+  Future<List<TransactionRecord>> loadTransactions();
+  Future<void> returnSaleItem({
+    required String saleId,
+    required String productId,
+    required int quantity,
+  });
 }

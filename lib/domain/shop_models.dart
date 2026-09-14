@@ -1,4 +1,56 @@
-enum MovementType { sale, purchase, adjustment }
+enum MovementType { sale, purchase, adjustment, itemReturn }
+
+extension MovementTypeValue on MovementType {
+  String get databaseValue => switch (this) {
+    MovementType.itemReturn => 'return',
+    _ => name,
+  };
+
+  static MovementType fromDatabase(Object? value) => switch (value) {
+    'sale' => MovementType.sale,
+    'purchase' => MovementType.purchase,
+    'return' => MovementType.itemReturn,
+    _ => MovementType.adjustment,
+  };
+}
+
+class CartLine {
+  const CartLine({required this.product, required this.quantity});
+  final Product product;
+  final int quantity;
+  int get total => product.salePrice * quantity;
+  CartLine copyWith({int? quantity}) =>
+      CartLine(product: product, quantity: quantity ?? this.quantity);
+}
+
+class TransactionLine {
+  const TransactionLine({
+    required this.productId,
+    required this.name,
+    required this.quantity,
+    required this.unitPrice,
+  });
+  final String productId, name;
+  final int quantity, unitPrice;
+  int get total => quantity * unitPrice;
+}
+
+class TransactionRecord {
+  const TransactionRecord({
+    required this.id,
+    required this.sale,
+    required this.total,
+    required this.createdAt,
+    required this.lines,
+    this.partyName,
+  });
+  final String id;
+  final bool sale;
+  final int total;
+  final DateTime createdAt;
+  final String? partyName;
+  final List<TransactionLine> lines;
+}
 
 class Product {
   const Product({
@@ -23,14 +75,21 @@ class Product {
       : category == 'Food'
       ? '🍪'
       : '📦';
-  Product copyWith({int? stock}) => Product(
+  Product copyWith({
+    String? name,
+    String? sku,
+    int? stock,
+    int? costPrice,
+    int? salePrice,
+    int? lowStockLimit,
+  }) => Product(
     id: id,
-    name: name,
-    sku: sku,
+    name: name ?? this.name,
+    sku: sku ?? this.sku,
     stock: stock ?? this.stock,
-    costPrice: costPrice,
-    salePrice: salePrice,
-    lowStockLimit: lowStockLimit,
+    costPrice: costPrice ?? this.costPrice,
+    salePrice: salePrice ?? this.salePrice,
+    lowStockLimit: lowStockLimit ?? this.lowStockLimit,
     category: category,
     imagePath: imagePath,
     imageUrl: imageUrl,
@@ -62,6 +121,14 @@ class Customer {
   });
   final String id, name, phone, address, note;
   final int debt;
+  Customer copyWith({String? name, String? phone, String? address}) => Customer(
+    id: id,
+    name: name ?? this.name,
+    phone: phone ?? this.phone,
+    address: address ?? this.address,
+    note: note,
+    debt: debt,
+  );
   factory Customer.fromJson(Map<String, dynamic> j) => Customer(
     id: j['id'] as String,
     name: j['name'] as String,
@@ -126,7 +193,7 @@ class StockMovement {
     id: j['id'] as String,
     productId: j['product_id'] as String,
     quantity: (j['quantity'] as num).toInt(),
-    type: MovementType.values.byName(j['movement_type'] as String),
+    type: MovementTypeValue.fromDatabase(j['movement_type']),
     total: 0,
     createdAt: DateTime.parse(j['created_at'] as String),
   );

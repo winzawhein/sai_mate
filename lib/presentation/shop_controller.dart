@@ -50,10 +50,28 @@ class ShopController extends AsyncNotifier<ShopState> {
     String? imageExtension,
   }) async {
     final s = state.requireValue;
+    final normalizedName = name.trim().toLowerCase();
+    final normalizedSku = sku.trim().toLowerCase();
+    if (normalizedName.isEmpty) {
+      throw const FormatException('ပစ္စည်းအမည် ထည့်ပါ');
+    }
+    if (s.products.any(
+      (product) => product.name.trim().toLowerCase() == normalizedName,
+    )) {
+      throw const FormatException(
+        'ဤပစ္စည်း ရှိပြီးသားဖြစ်ပါသည်။ ရှိပြီးသားပစ္စည်းကို ရွေးပြီး လက်ကျန်ထည့်ပါ။',
+      );
+    }
+    if (normalizedSku.isNotEmpty &&
+        s.products.any(
+          (product) => product.sku.trim().toLowerCase() == normalizedSku,
+        )) {
+      throw const FormatException('ဤ SKU ကို အသုံးပြုပြီးသား ဖြစ်ပါသည်။');
+    }
     final product = Product(
       id: _id(),
-      name: name,
-      sku: sku,
+      name: name.trim(),
+      sku: sku.trim(),
       stock: stock,
       costPrice: cost,
       salePrice: price,
@@ -65,7 +83,15 @@ class ShopController extends AsyncNotifier<ShopState> {
         imageBytes: imageBytes,
         imageExtension: imageExtension,
       );
-      state = AsyncData(await _repo.load());
+      final refreshed = await _repo.load();
+      final productWasLoaded = refreshed.products.any(
+        (candidate) => candidate.id == product.id,
+      );
+      state = AsyncData(
+        productWasLoaded
+            ? refreshed
+            : refreshed.copyWith(products: [...refreshed.products, product]),
+      );
       return;
     }
     await _commit(s.copyWith(products: [...s.products, product]));
@@ -183,6 +209,30 @@ class ShopController extends AsyncNotifier<ShopState> {
     );
   }
 
+  Future<void> checkoutSale({
+    required List<CartLine> items,
+    String? customerId,
+    bool debt = false,
+    int discount = 0,
+    String paymentMethod = 'cash',
+  }) async {
+    if (items.isEmpty) throw const FormatException('Cart is empty');
+    if (_repo case TransactionalShopRepository tx) {
+      await tx.createSaleCart(
+        items: items,
+        customerId: customerId,
+        debt: debt,
+        discount: discount,
+        paymentMethod: paymentMethod,
+      );
+      state = AsyncData(await _repo.load());
+      return;
+    }
+    for (final line in items) {
+      await sell(productId: line.product.id, quantity: line.quantity);
+    }
+  }
+
   Future<void> purchase({
     required String productId,
     required int quantity,
@@ -208,6 +258,22 @@ class ShopController extends AsyncNotifier<ShopState> {
     await _commit(s.copyWith(products: ps, movements: [...s.movements, m]));
   }
 
+  Future<void> checkoutPurchase({
+    required List<CartLine> items,
+    String? supplierId,
+  }) async {
+    if (items.isEmpty) throw const FormatException('Cart is empty');
+    if (_repo case TransactionalShopRepository tx) {
+      await tx.createPurchaseCart(items: items, supplierId: supplierId);
+      final refreshed = await _repo.load();
+      state = AsyncData(refreshed);
+      return;
+    }
+    for (final line in items) {
+      await purchase(productId: line.product.id, quantity: line.quantity);
+    }
+  }
+
   Future<void> collectPayment(String debtId, int amount) async {
     if (_repo case TransactionalShopRepository tx) {
       await tx.collectDebtPayment(debtId: debtId, amount: amount);
@@ -223,5 +289,33 @@ class ShopController extends AsyncNotifier<ShopState> {
         )
         .toList();
     await _commit(s.copyWith(debts: ds));
+  }
+
+  Future<void> updateProduct(Product product) async {
+    if (_repo case RecordManagementRepository records) {
+      await records.updateProduct(product);
+      state = AsyncData(await _repo.load());
+    }
+  }
+
+  Future<void> deleteProduct(Product product) async {
+    if (_repo case RecordManagementRepository records) {
+      await records.deleteProduct(product);
+      state = AsyncData(await _repo.load());
+    }
+  }
+
+  Future<void> updateCustomer(Customer customer) async {
+    if (_repo case RecordManagementRepository records) {
+      await records.updateCustomer(customer);
+      state = AsyncData(await _repo.load());
+    }
+  }
+
+  Future<void> deleteCustomer(Customer customer) async {
+    if (_repo case RecordManagementRepository records) {
+      await records.deleteCustomer(customer);
+      state = AsyncData(await _repo.load());
+    }
   }
 }

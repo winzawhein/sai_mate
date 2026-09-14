@@ -1,6 +1,5 @@
 import 'dart:developer' as developer;
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +10,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'domain/shop_models.dart';
 import 'presentation/shop_controller.dart';
+import 'presentation/sale_cart_sheet.dart';
+import 'presentation/purchase_cart_sheet.dart';
+import 'presentation/record_management_sheet.dart';
+import 'presentation/advanced_reports_page.dart';
+import 'presentation/inventory_add_sheet.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -244,7 +248,7 @@ class AppShell extends ConsumerWidget {
           DashboardPage(),
           InventoryPage(),
           CustomersPage(),
-          ReportsPage(),
+          AdvancedReportsPage(),
         ],
       ),
       floatingActionButton: Material(
@@ -752,68 +756,71 @@ class AppCard extends StatelessWidget {
   );
 }
 
-class ProductRow extends StatelessWidget {
+class ProductRow extends ConsumerWidget {
   const ProductRow(this.product, {super.key});
   final Product product;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final critical = product.stock <= 5;
     final low = product.stock <= 10 && !critical;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: line)),
-      ),
-      child: Row(
-        children: [
-          ProductThumbnail(product: product),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onLongPress: () => showProductManagement(context, product),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: line)),
+        ),
+        child: Row(
+          children: [
+            ProductThumbnail(product: product),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${product.sku} · ${product.stock} ခု ကျန်',
-                  style: const TextStyle(color: muted, fontSize: 10),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: critical
-                  ? const Color(0xFFFFE4DF)
-                  : low
-                  ? const Color(0xFFFFF0CF)
-                  : const Color(0xFFE1F3E9),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              critical
-                  ? 'အရေးကြီး'
-                  : low
-                  ? 'နည်းနေပြီ'
-                  : 'အဆင်ပြေ',
-              style: TextStyle(
-                color: critical
-                    ? const Color(0xFFB84E48)
-                    : low
-                    ? const Color(0xFF9A6A16)
-                    : green,
-                fontSize: 9,
+                  const SizedBox(height: 3),
+                  Text(
+                    '${product.sku} · ${product.stock} ခု ကျန်',
+                    style: const TextStyle(color: muted, fontSize: 10),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: critical
+                    ? const Color(0xFFFFE4DF)
+                    : low
+                    ? const Color(0xFFFFF0CF)
+                    : const Color(0xFFE1F3E9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                critical
+                    ? 'အရေးကြီး'
+                    : low
+                    ? 'နည်းနေပြီ'
+                    : 'အဆင်ပြေ',
+                style: TextStyle(
+                  color: critical
+                      ? const Color(0xFFB84E48)
+                      : low
+                      ? const Color(0xFF9A6A16)
+                      : green,
+                  fontSize: 9,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -829,7 +836,7 @@ class ProductThumbnail extends ConsumerWidget {
     onTap: () async {
       final messenger = ScaffoldMessenger.of(context);
       try {
-        final selection = await ProductImagePicker.pick();
+        final selection = await ProductImagePicker.pick(context);
         if (selection == null || !context.mounted) return;
         await ref
             .read(shopProvider.notifier)
@@ -927,11 +934,19 @@ class ProductImageSelection {
 }
 
 abstract final class ProductImagePicker {
-  static Future<ProductImageSelection?> pick() async {
+  static Future<ProductImageSelection?> pick(BuildContext context) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const ProductImageSourceSheet(),
+    );
+    if (source == null) return null;
     final image = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
+      source: source,
+      preferredCameraDevice: CameraDevice.rear,
       imageQuality: 82,
       maxWidth: 1400,
+      maxHeight: 1400,
     );
     if (image == null) return null;
     return ProductImageSelection(
@@ -939,6 +954,117 @@ abstract final class ProductImagePicker {
       extension: image.name.split('.').last.toLowerCase(),
     );
   }
+}
+
+class ProductImageSourceSheet extends StatelessWidget {
+  const ProductImageSourceSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+      decoration: BoxDecoration(
+        color: cream,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 28,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: line,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 17),
+          const Text(
+            'ပစ္စည်းပုံ ရွေးချယ်ပါ',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ImageSourceOption(
+                  icon: Icons.camera_alt_rounded,
+                  title: 'ဓာတ်ပုံရိုက်မည်',
+                  color: green,
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ImageSourceOption(
+                  icon: Icons.photo_library_rounded,
+                  title: 'Gallery မှရွေးမည်',
+                  color: orange,
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class ImageSourceOption extends StatelessWidget {
+  const ImageSourceOption({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(18),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: .2)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.white, size: 23),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class ProductImagePickerField extends StatelessWidget {
@@ -1010,57 +1136,60 @@ class ProductImagePickerField extends StatelessWidget {
   );
 }
 
-class CustomerRow extends StatelessWidget {
+class CustomerRow extends ConsumerWidget {
   const CustomerRow(this.customer, {super.key});
   final Customer customer;
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 11),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: line)),
-    ),
-    child: Row(
-      children: [
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: const Color(0xFFECE9FF),
-          child: Text(
-            customer.name.substring(0, 1),
+  Widget build(BuildContext context, WidgetRef ref) => GestureDetector(
+    onLongPress: () => showCustomerManagement(context, customer),
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: line)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: const Color(0xFFECE9FF),
+            child: Text(
+              customer.name.substring(0, 1),
+              style: const TextStyle(
+                color: Color(0xFF6659B1),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  customer.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  customer.note,
+                  style: const TextStyle(color: muted, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${customer.debt} Ks',
             style: const TextStyle(
-              color: Color(0xFF6659B1),
+              color: red,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                customer.name,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                customer.note,
-                style: const TextStyle(color: muted, fontSize: 10),
-              ),
-            ],
-          ),
-        ),
-        Text(
-          '${customer.debt} Ks',
-          style: const TextStyle(
-            color: red,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -1078,7 +1207,10 @@ class InventoryPage extends ConsumerWidget {
       title: 'ပစ္စည်းလက်ကျန်',
       hint: 'ပစ္စည်းရှာရန်...',
       count: 'ပစ္စည်းအားလုံး · ${items.length}',
-      onAdd: () => showEntrySheet(context, EntryType.product),
+      onAdd: () => showInventoryAddSheet(
+        context,
+        onCreateNew: () => showEntrySheet(context, EntryType.product),
+      ),
       child: AppCard(
         child: Column(children: items.map(ProductRow.new).toList()),
       ),
@@ -1209,6 +1341,24 @@ class ReportsPage extends ConsumerWidget {
 }
 
 void showEntrySheet(BuildContext context, EntryType type) {
+  if (type == EntryType.sale) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const SaleCartSheet(),
+    );
+    return;
+  }
+  if (type == EntryType.purchase) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const PurchaseCartSheet(),
+    );
+    return;
+  }
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -1420,7 +1570,7 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
   Future<void> _pickProductImage() async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final selection = await ProductImagePicker.pick();
+      final selection = await ProductImagePicker.pick(context);
       if (selection == null || !mounted) return;
       ref.read(productImageProvider.notifier).state = selection;
     } catch (error, stack) {

@@ -6,16 +6,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../domain/shop_models.dart';
 import '../domain/shop_repository.dart';
+import 'offline_store.dart';
 
 class SupabaseShopRepository
     implements
         ShopRepository,
         TransactionalShopRepository,
         ProductCrudRepository,
-        CustomerDebtCrudRepository {
+        CustomerDebtCrudRepository,
+        RecordManagementRepository,
+        HistoryRepository {
   SupabaseShopRepository(this.client);
   final SupabaseClient client;
   String? _shopId;
+  final OfflineStore _offline = const OfflineStore();
 
   Future<String> _shop() async {
     if (_shopId != null) return _shopId!;
@@ -118,6 +122,137 @@ class SupabaseShopRepository
   }
 
   @override
+  Future<void> updateProduct(Product product) async {
+    await client
+        .from('products')
+        .update({
+          'name': product.name,
+          'sku': product.sku.isEmpty ? null : product.sku,
+          'cost_price': product.costPrice,
+          'sale_price': product.salePrice,
+          'low_stock_limit': product.lowStockLimit,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', product.id)
+        .eq('shop_id', await _shop());
+  }
+
+  @override
+  Future<void> deleteProduct(Product product) async {
+    await client
+        .from('products')
+        .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', product.id)
+        .eq('shop_id', await _shop());
+  }
+
+  @override
+  Future<void> updateCustomer(Customer customer) async {
+    await client
+        .from('customers')
+        .update({
+          'name': customer.name,
+          'phone': customer.phone.isEmpty ? null : customer.phone,
+          'address': customer.address.isEmpty ? null : customer.address,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', customer.id)
+        .eq('shop_id', await _shop());
+  }
+
+  @override
+  Future<void> deleteCustomer(Customer customer) async {
+    if (customer.debt > 0) {
+      throw StateError('အကြွေးကျန်ရှိသော ဖောက်သည်ကို ဖျက်၍မရပါ');
+    }
+    await client
+        .from('customers')
+        .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', customer.id)
+        .eq('shop_id', await _shop());
+  }
+
+  @override
+  Future<List<TransactionRecord>> loadTransactions() async {
+    final shopId = await _shop();
+    final results = await Future.wait([
+      client
+          .from('sales')
+          .select(
+            'id,total,created_at,customers(name),sale_items(product_id,quantity,unit_price,products(name))',
+          )
+          .eq('shop_id', shopId)
+          .order('created_at', ascending: false)
+          .limit(100),
+      client
+          .from('purchases')
+          .select(
+            'id,total,created_at,suppliers(name),purchase_items(product_id,quantity,unit_cost,products(name))',
+          )
+          .eq('shop_id', shopId)
+          .order('created_at', ascending: false)
+          .limit(100),
+    ]);
+    final sales = (results[0] as List).map((raw) {
+      final row = raw as Map<String, dynamic>;
+      return TransactionRecord(
+        id: row['id'],
+        sale: true,
+        total: (row['total'] as num).toInt(),
+        createdAt: DateTime.parse(row['created_at']),
+        partyName: (row['customers'] as Map?)?['name'] as String?,
+        lines: (row['sale_items'] as List).map((rawLine) {
+          final line = rawLine as Map<String, dynamic>;
+          return TransactionLine(
+            productId: line['product_id'],
+            name: (line['products'] as Map?)?['name'] as String? ?? 'Product',
+            quantity: (line['quantity'] as num).toInt(),
+            unitPrice: (line['unit_price'] as num).toInt(),
+          );
+        }).toList(),
+      );
+    });
+    final purchases = (results[1] as List).map((raw) {
+      final row = raw as Map<String, dynamic>;
+      return TransactionRecord(
+        id: row['id'],
+        sale: false,
+        total: (row['total'] as num).toInt(),
+        createdAt: DateTime.parse(row['created_at']),
+        partyName: (row['suppliers'] as Map?)?['name'] as String?,
+        lines: (row['purchase_items'] as List).map((rawLine) {
+          final line = rawLine as Map<String, dynamic>;
+          return TransactionLine(
+            productId: line['product_id'],
+            name: (line['products'] as Map?)?['name'] as String? ?? 'Product',
+            quantity: (line['quantity'] as num).toInt(),
+            unitPrice: (line['unit_cost'] as num).toInt(),
+          );
+        }).toList(),
+      );
+    });
+    return [...sales, ...purchases]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  @override
+  Future<void> returnSaleItem({
+    required String saleId,
+    required String productId,
+    required int quantity,
+  }) async {
+    await client.rpc(
+      'return_sale_item',
+      params: {
+        'p_shop_id': await _shop(),
+        'p_sale_id': saleId,
+        'p_product_id': productId,
+        'p_quantity': quantity,
+      },
+    );
+  }
+
+  @override
   Future<void> createSupplier(Supplier supplier) async {
     await client.from('suppliers').insert({
       'id': supplier.id,
@@ -137,6 +272,84 @@ class SupabaseShopRepository
       'paid': debt.paid,
       'created_at': debt.createdAt.toUtc().toIso8601String(),
     });
+  }
+
+  @override
+  Future<void> createSaleCart({
+    required List<CartLine> items,
+    String? customerId,
+    bool debt = false,
+    int discount = 0,
+    String paymentMethod = 'cash',
+  }) async {
+    final params = <String, dynamic>{
+      'p_shop_id': await _shop(),
+      'p_items': items
+          .map(
+            (line) => {
+              'product_id': line.product.id,
+              'quantity': line.quantity,
+            },
+          )
+          .toList(),
+      'p_customer_id': customerId,
+      'p_on_credit': debt,
+      'p_discount': discount,
+      'p_payment_method': paymentMethod,
+      'p_request_id': const Uuid().v4(),
+    };
+    try {
+      await client.rpc('create_sale_cart', params: params);
+    } catch (error) {
+      if (error is PostgrestException) rethrow;
+      await _offline.enqueue(client.auth.currentUser!.id, {
+        'rpc': 'create_sale_cart',
+        'params': params,
+      });
+    }
+  }
+
+  @override
+  Future<void> createPurchaseCart({
+    required List<CartLine> items,
+    String? supplierId,
+  }) async {
+    // The original production schema exposes create_purchase for one product.
+    // Use it for the quick stock-entry flow so the quantity is committed even
+    // when the optional v2 multi-item RPC has not been installed yet.
+    if (items.length == 1 && supplierId == null) {
+      final line = items.single;
+      await client
+          .from('products')
+          .update({'cost_price': line.product.costPrice})
+          .eq('id', line.product.id)
+          .eq('shop_id', await _shop());
+      await createPurchase(productId: line.product.id, quantity: line.quantity);
+      return;
+    }
+    final params = <String, dynamic>{
+      'p_shop_id': await _shop(),
+      'p_items': items
+          .map(
+            (line) => {
+              'product_id': line.product.id,
+              'quantity': line.quantity,
+              'unit_cost': line.product.costPrice,
+            },
+          )
+          .toList(),
+      'p_supplier_id': supplierId,
+      'p_request_id': const Uuid().v4(),
+    };
+    try {
+      await client.rpc('create_purchase_cart', params: params);
+    } catch (error) {
+      if (error is PostgrestException) rethrow;
+      await _offline.enqueue(client.auth.currentUser!.id, {
+        'rpc': 'create_purchase_cart',
+        'params': params,
+      });
+    }
   }
 
   @override
@@ -232,6 +445,99 @@ class SupabaseShopRepository
 
   @override
   Future<ShopState> load() async {
+    final user = client.auth.currentUser;
+    if (user == null) throw const AuthException('Not signed in');
+    try {
+      await _syncPending(user.id);
+      final state = await _loadRemote();
+      await _offline.write(user.id, state);
+      return state;
+    } catch (error, stack) {
+      developer.log(
+        'Remote shop load failed',
+        name: 'SaiMate.Supabase',
+        error: error,
+        stackTrace: stack,
+      );
+      if (error is PostgrestException || error is AuthException) rethrow;
+      final cached = await _offline.read(user.id);
+      if (cached != null) return cached;
+      rethrow;
+    }
+  }
+
+  Future<void> _syncPending(String userId) async {
+    final commands = await _offline.pending(userId);
+    final remaining = <Map<String, dynamic>>[];
+    for (var i = 0; i < commands.length; i++) {
+      final command = commands[i];
+      try {
+        await client.rpc(
+          command['rpc'] as String,
+          params: command['params'] as Map<String, dynamic>,
+        );
+      } on PostgrestException catch (error, stack) {
+        final migrated =
+            error.code == 'PGRST202' &&
+            command['rpc'] == 'create_purchase_cart' &&
+            await _syncLegacyPurchase(command);
+        if (migrated) continue;
+        developer.log(
+          'Queued command could not be synchronized',
+          name: 'SaiMate.Supabase',
+          error: error,
+          stackTrace: stack,
+        );
+        remaining.addAll(commands.skip(i));
+        break;
+      } catch (error, stack) {
+        developer.log(
+          'Queued command could not be synchronized',
+          name: 'SaiMate.Supabase',
+          error: error,
+          stackTrace: stack,
+        );
+        remaining.addAll(commands.skip(i));
+        break;
+      }
+    }
+    await _offline.replaceQueue(userId, remaining);
+  }
+
+  Future<bool> _syncLegacyPurchase(Map<String, dynamic> command) async {
+    final params = command['params'] as Map<String, dynamic>?;
+    final rawItems = params?['p_items'];
+    if (params == null || rawItems is! List || rawItems.length != 1) {
+      return false;
+    }
+    final item = Map<String, dynamic>.from(rawItems.single as Map);
+    final productId = item['product_id'] as String?;
+    final quantity = (item['quantity'] as num?)?.toInt();
+    if (productId == null || quantity == null || quantity <= 0) return false;
+    final unitCost = (item['unit_cost'] as num?)?.toInt();
+    if (unitCost != null) {
+      await client
+          .from('products')
+          .update({'cost_price': unitCost})
+          .eq('id', productId)
+          .eq('shop_id', params['p_shop_id']);
+    }
+    await client.rpc(
+      'create_purchase',
+      params: {
+        'p_shop_id': params['p_shop_id'],
+        'p_product_id': productId,
+        'p_quantity': quantity,
+      },
+    );
+    developer.log(
+      'Synchronized queued purchase with legacy RPC',
+      name: 'SaiMate.Supabase',
+    );
+    return true;
+  }
+
+  Future<ShopState> _loadRemote() async {
     final id = await _shop();
     final monthStart = DateTime(
       DateTime.now().year,
@@ -384,7 +690,7 @@ class SupabaseShopRepository
                     'id': m.id,
                     'shop_id': id,
                     'product_id': m.productId,
-                    'movement_type': m.type.name,
+                    'movement_type': m.type.databaseValue,
                     'quantity': m.quantity,
                     'created_at': m.createdAt.toIso8601String(),
                   },
