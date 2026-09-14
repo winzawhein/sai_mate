@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,14 +16,19 @@ import 'presentation/purchase_cart_sheet.dart';
 import 'presentation/record_management_sheet.dart';
 import 'presentation/advanced_reports_page.dart';
 import 'presentation/inventory_add_sheet.dart';
+import 'presentation/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  const url = String.fromEnvironment('SUPABASE_URL');
-  const key = String.fromEnvironment('SUPABASE_ANON_KEY');
-  if (url.isNotEmpty && key.isNotEmpty) {
-    await Supabase.initialize(url: url, publishableKey: key);
-  }
+  const url = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://wvpdnbncweoebtnnsrag.supabase.co',
+  );
+  const key = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_SLBMcNyMVCtJgMvker0bbQ_tygR6cWj',
+  );
+  await Supabase.initialize(url: url, publishableKey: key);
   runApp(const ProviderScope(child: SaiMateApp()));
 }
 
@@ -34,6 +40,12 @@ const mint = Color(0xFFDFF3E9);
 const orange = Color(0xFFFF9E63);
 const line = Color(0xFFE9EBE5);
 const red = Color(0xFFE96C66);
+
+Color appSurface(BuildContext context) => Theme.of(context).colorScheme.surface;
+Color appCardColor(BuildContext context) =>
+    Theme.of(context).colorScheme.surfaceContainerHigh;
+Color appLineColor(BuildContext context) =>
+    Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .65);
 
 enum EntryType { sale, purchase, customer, debt, product }
 
@@ -68,19 +80,22 @@ abstract final class AppErrorMessage {
   }
 }
 
-class SaiMateApp extends StatelessWidget {
+class SaiMateApp extends ConsumerWidget {
   const SaiMateApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) => MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'ဆိုင်မိတ်',
+    themeMode: ref.watch(themeModeProvider),
     theme: ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: cream,
-      colorScheme: ColorScheme.fromSeed(seedColor: green),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: green,
+        brightness: Brightness.light,
+        surface: cream,
+      ),
       fontFamily: 'Noto Sans Myanmar',
-      textTheme: Theme.of(context).textTheme
-          .apply(bodyColor: ink, displayColor: ink),
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
@@ -100,6 +115,38 @@ class SaiMateApp extends StatelessWidget {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
           borderSide: const BorderSide(color: line),
+        ),
+      ),
+    ),
+    darkTheme: ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF0C1513),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF43C6A8),
+        brightness: Brightness.dark,
+        surface: const Color(0xFF111D1A),
+      ),
+      fontFamily: 'Noto Sans Myanmar',
+      cardTheme: CardThemeData(
+        color: const Color(0xFF172522),
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFF29403A)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF172522),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: Color(0xFF29403A)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: Color(0xFF29403A)),
         ),
       ),
     ),
@@ -239,14 +286,34 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(tabProvider);
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final online = ref.watch(isOnlineProvider);
+    ref.listen<bool>(isOnlineProvider, (previous, connected) {
+      if (connected && previous == false) {
+        ref.invalidate(shopProvider);
+        ref.invalidate(transactionHistoryProvider);
+      }
+    });
     return Scaffold(
-      body: IndexedStack(
-        index: tab,
-        children: const [
-          DashboardPage(),
-          InventoryPage(),
-          CustomersPage(),
-          AdvancedReportsPage(),
+      extendBody: true,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: tab,
+            children: const [
+              DashboardPage(),
+              InventoryPage(),
+              CustomersPage(),
+              AdvancedReportsPage(),
+            ],
+          ),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 8,
+            left: 0,
+            right: 0,
+            child: Center(child: ConnectionBadge(online: online)),
+          ),
         ],
       ),
       floatingActionButton: Material(
@@ -273,52 +340,110 @@ class AppShell extends ConsumerWidget {
           ),
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: line)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 76,
-            child: Row(
-              children: [
-                AppNavItem(
-                  current: tab,
-                  index: 0,
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home,
-                  label: 'ပင်မ',
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            child: Container(
+              height: 72,
+              decoration: BoxDecoration(
+                color: colors.surface.withValues(alpha: dark ? .78 : .72),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: colors.outlineVariant.withValues(alpha: .55),
                 ),
-                AppNavItem(
-                  current: tab,
-                  index: 1,
-                  icon: Icons.inventory_2_outlined,
-                  activeIcon: Icons.inventory_2,
-                  label: 'ပစ္စည်း',
-                ),
-                AppNavItem(
-                  current: tab,
-                  index: 2,
-                  icon: Icons.people_outline,
-                  activeIcon: Icons.people,
-                  label: 'ဖောက်သည်',
-                ),
-                AppNavItem(
-                  current: tab,
-                  index: 3,
-                  icon: Icons.donut_large_outlined,
-                  activeIcon: Icons.donut_large,
-                  label: 'အစီရင်ခံစာ',
-                ),
-              ],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: dark ? .32 : .12),
+                    blurRadius: 28,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  AppNavItem(
+                    current: tab,
+                    index: 0,
+                    icon: Icons.home_outlined,
+                    activeIcon: Icons.home,
+                    label: 'ပင်မ',
+                  ),
+                  AppNavItem(
+                    current: tab,
+                    index: 1,
+                    icon: Icons.inventory_2_outlined,
+                    activeIcon: Icons.inventory_2,
+                    label: 'ပစ္စည်း',
+                  ),
+                  AppNavItem(
+                    current: tab,
+                    index: 2,
+                    icon: Icons.people_outline,
+                    activeIcon: Icons.people,
+                    label: 'ဖောက်သည်',
+                  ),
+                  AppNavItem(
+                    current: tab,
+                    index: 3,
+                    icon: Icons.donut_large_outlined,
+                    activeIcon: Icons.donut_large,
+                    label: 'အစီရင်ခံစာ',
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class ConnectionBadge extends StatelessWidget {
+  const ConnectionBadge({super.key, required this.online});
+  final bool online;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(18),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 350),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: (online ? green : const Color(0xFF8B4A35)).withValues(
+            alpha: .82,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: .28)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              online ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+              color: Colors.white,
+              size: 15,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              online ? 'Online' : 'Offline',
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: null,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class AppNavItem extends ConsumerWidget {
@@ -336,6 +461,7 @@ class AppNavItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = current == index;
+    final colors = Theme.of(context).colorScheme;
     return Expanded(
       child: InkWell(
         onTap: () {
@@ -347,7 +473,7 @@ class AppNavItem extends ConsumerWidget {
           children: [
             Icon(
               selected ? activeIcon : icon,
-              color: selected ? green : const Color(0xFF98A29F),
+              color: selected ? colors.primary : colors.onSurfaceVariant,
               size: 23,
             ),
             const SizedBox(height: 3),
@@ -356,7 +482,7 @@ class AppNavItem extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? green : const Color(0xFF98A29F),
+                color: selected ? colors.primary : colors.onSurfaceVariant,
               ),
             ),
           ],
@@ -542,7 +668,7 @@ Future<void> showAccountSheet(
     context: context,
     showDragHandle: true,
     useSafeArea: true,
-    backgroundColor: cream,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     builder: (sheetContext) => Padding(
       padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
       child: Column(
@@ -569,6 +695,24 @@ Future<void> showAccountSheet(
             ),
           ],
           const SizedBox(height: 22),
+          Consumer(
+            builder: (context, ref, child) {
+              ref.watch(themeModeProvider);
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                secondary: Icon(
+                  isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                  color: green,
+                ),
+                title: const Text('အမှောင်ပုံစံ'),
+                subtitle: Text(isDark ? 'Dark mode' : 'Light mode'),
+                value: isDark,
+                onChanged: ref.read(themeModeProvider.notifier).setDark,
+              );
+            },
+          ),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: red,
@@ -719,7 +863,9 @@ class SummaryCard extends StatelessWidget {
     height: 150,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: debt ? mint : const Color(0xFFFFF4E9),
+      color: Theme.of(context).brightness == Brightness.dark
+          ? (debt ? const Color(0xFF15362F) : const Color(0xFF392A20))
+          : (debt ? mint : const Color(0xFFFFF4E9)),
       borderRadius: BorderRadius.circular(18),
     ),
     child: Column(
@@ -814,8 +960,8 @@ class QuickAction extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: line),
+            color: appCardColor(context),
+            border: Border.all(color: appLineColor(context)),
             borderRadius: BorderRadius.circular(15),
             boxShadow: const [
               BoxShadow(
@@ -845,8 +991,8 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: line),
+      color: appCardColor(context),
+      border: Border.all(color: appLineColor(context)),
       borderRadius: BorderRadius.circular(18),
       boxShadow: const [
         BoxShadow(
@@ -871,8 +1017,8 @@ class ProductRow extends ConsumerWidget {
       onLongPress: () => showProductManagement(context, product),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: line)),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: appLineColor(context))),
         ),
         child: Row(
           children: [
@@ -1069,7 +1215,7 @@ class ProductImageSourceSheet extends StatelessWidget {
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
       decoration: BoxDecoration(
-        color: cream,
+        color: appSurface(context),
         borderRadius: BorderRadius.circular(26),
         boxShadow: const [
           BoxShadow(
@@ -1191,9 +1337,9 @@ class ProductImagePickerField extends StatelessWidget {
         height: 92,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: appCardColor(context),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: line),
+          border: Border.all(color: appLineColor(context)),
         ),
         child: Row(
           children: [
@@ -1248,8 +1394,8 @@ class CustomerRow extends ConsumerWidget {
     onLongPress: () => showCustomerManagement(context, customer),
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: line)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: appLineColor(context))),
       ),
       child: Row(
         children: [
@@ -1407,7 +1553,9 @@ class ReportsPage extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: mint,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF15362F)
+                    : mint,
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Column(
@@ -1513,9 +1661,9 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
         padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
-        decoration: const BoxDecoration(
-          color: cream,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        decoration: BoxDecoration(
+          color: appSurface(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
         ),
         child: SingleChildScrollView(
           child: Column(

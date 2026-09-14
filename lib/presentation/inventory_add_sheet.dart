@@ -6,7 +6,6 @@ import '../domain/shop_models.dart';
 import 'shop_controller.dart';
 
 const _green = Color(0xFF1C6D5B);
-const _cream = Color(0xFFF7F7F2);
 
 final inventoryChooserSearchProvider = StateProvider.autoDispose<String>(
   (ref) => '',
@@ -59,9 +58,9 @@ class InventoryAddSheet extends ConsumerWidget {
     return SafeArea(
       child: Container(
         height: MediaQuery.sizeOf(context).height * .86,
-        decoration: const BoxDecoration(
-          color: _cream,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +211,7 @@ class ExistingProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: Colors.white,
+    color: Theme.of(context).colorScheme.surfaceContainerHigh,
     borderRadius: BorderRadius.circular(16),
     child: ListTile(
       onTap: () {

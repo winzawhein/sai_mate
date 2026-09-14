@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+
 import '../domain/shop_models.dart';
 import '../domain/shop_repository.dart';
 import 'offline_store.dart';
@@ -11,6 +12,7 @@ import 'offline_store.dart';
 class SupabaseShopRepository
     implements
         ShopRepository,
+        OfflineCacheRepository,
         TransactionalShopRepository,
         ProductCrudRepository,
         CustomerDebtCrudRepository,
@@ -21,17 +23,32 @@ class SupabaseShopRepository
   String? _shopId;
   final OfflineStore _offline = const OfflineStore();
 
+  @override
+  Future<void> cacheState(ShopState state) async {
+    final user = client.auth.currentUser;
+    if (user != null) await _offline.write(user.id, state);
+  }
+
   Future<String> _shop() async {
     if (_shopId != null) return _shopId!;
     final user = client.auth.currentUser;
     if (user == null) throw const AuthException('Not signed in');
-    final row = await client
-        .from('shop_members')
-        .select('shop_id')
-        .eq('user_id', user.id)
-        .limit(1)
-        .single();
-    return _shopId = row['shop_id'] as String;
+    try {
+      final row = await client
+          .from('shop_members')
+          .select('shop_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+      _shopId = row['shop_id'] as String;
+      await _offline.writeShopId(user.id, _shopId!);
+      return _shopId!;
+    } catch (error) {
+      if (error is PostgrestException) rethrow;
+      final cached = await _offline.readShopId(user.id);
+      if (cached != null) return _shopId = cached;
+      rethrow;
+    }
   }
 
   @override
@@ -56,21 +73,30 @@ class SupabaseShopRepository
             ),
           );
     }
+    final values = <String, dynamic>{
+      'id': p.id,
+      'shop_id': shopId,
+      'name': p.name,
+      'sku': p.sku.isEmpty ? null : p.sku,
+      'cost_price': p.costPrice,
+      'sale_price': p.salePrice,
+      'stock_quantity': p.stock,
+      'low_stock_limit': p.lowStockLimit,
+      'image_path': imagePath,
+    };
     try {
-      await client.from('products').insert({
-        'id': p.id,
-        'shop_id': shopId,
-        'name': p.name,
-        'sku': p.sku.isEmpty ? null : p.sku,
-        'cost_price': p.costPrice,
-        'sale_price': p.salePrice,
-        'stock_quantity': p.stock,
-        'low_stock_limit': p.lowStockLimit,
-        'image_path': imagePath,
-      });
-    } catch (_) {
+      await client.from('products').insert(values);
+    } catch (error) {
       if (imagePath != null) {
         await client.storage.from('product-images').remove([imagePath]);
+      }
+      if (error is! PostgrestException && imageBytes == null) {
+        await _offline.enqueue(client.auth.currentUser!.id, {
+          'kind': 'insert',
+          'table': 'products',
+          'values': values,
+        });
+        return;
       }
       rethrow;
     }
@@ -112,13 +138,23 @@ class SupabaseShopRepository
 
   @override
   Future<void> createCustomer(Customer customer) async {
-    await client.from('customers').insert({
+    final values = {
       'id': customer.id,
       'shop_id': await _shop(),
       'name': customer.name,
       'phone': customer.phone.isEmpty ? null : customer.phone,
       'address': customer.address.isEmpty ? null : customer.address,
-    });
+    };
+    try {
+      await client.from('customers').insert(values);
+    } catch (error) {
+      if (error is PostgrestException) rethrow;
+      await _offline.enqueue(client.auth.currentUser!.id, {
+        'kind': 'insert',
+        'table': 'customers',
+        'values': values,
+      });
+    }
   }
 
   @override
@@ -264,14 +300,24 @@ class SupabaseShopRepository
 
   @override
   Future<void> createDebt(Debt debt) async {
-    await client.from('debts').insert({
+    final values = {
       'id': debt.id,
       'shop_id': await _shop(),
       'customer_id': debt.customerId,
       'amount': debt.amount,
       'paid': debt.paid,
       'created_at': debt.createdAt.toUtc().toIso8601String(),
-    });
+    };
+    try {
+      await client.from('debts').insert(values);
+    } catch (error) {
+      if (error is PostgrestException) rethrow;
+      await _offline.enqueue(client.auth.currentUser!.id, {
+        'kind': 'insert',
+        'table': 'debts',
+        'values': values,
+      });
+    }
   }
 
   @override
@@ -408,8 +454,14 @@ class SupabaseShopRepository
         }
       }
     }
-    throw StateError(
-      'Supabase ချိတ်ဆက်၍မရပါ။ အင်တာနက်စစ်ပြီး ထပ်ကြိုးစားပါ။ ($lastError)',
+    await _offline.enqueue(client.auth.currentUser!.id, {
+      'rpc': 'create_sale',
+      'params': params,
+    });
+    developer.log(
+      'Sale queued for offline sync',
+      name: 'SaiMate.Supabase',
+      error: lastError,
     );
   }
 
@@ -418,14 +470,20 @@ class SupabaseShopRepository
     required String productId,
     required int quantity,
   }) async {
-    await client.rpc(
-      'create_purchase',
-      params: {
-        'p_shop_id': await _shop(),
-        'p_product_id': productId,
-        'p_quantity': quantity,
-      },
-    );
+    final params = {
+      'p_shop_id': await _shop(),
+      'p_product_id': productId,
+      'p_quantity': quantity,
+    };
+    try {
+      await client.rpc('create_purchase', params: params);
+    } catch (error) {
+      if (error is PostgrestException) rethrow;
+      await _offline.enqueue(client.auth.currentUser!.id, {
+        'rpc': 'create_purchase',
+        'params': params,
+      });
+    }
   }
 
   @override
@@ -472,10 +530,16 @@ class SupabaseShopRepository
     for (var i = 0; i < commands.length; i++) {
       final command = commands[i];
       try {
-        await client.rpc(
-          command['rpc'] as String,
-          params: command['params'] as Map<String, dynamic>,
-        );
+        if (command['kind'] == 'insert') {
+          await client
+              .from(command['table'] as String)
+              .insert(command['values'] as Map<String, dynamic>);
+        } else {
+          await client.rpc(
+            command['rpc'] as String,
+            params: command['params'] as Map<String, dynamic>,
+          );
+        }
       } on PostgrestException catch (error, stack) {
         final migrated =
             error.code == 'PGRST202' &&

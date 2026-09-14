@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+
 import '../data/in_memory_shop_repository.dart';
 import '../data/supabase_shop_repository.dart';
 import '../domain/shop_models.dart';
 import '../domain/shop_repository.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -16,6 +19,13 @@ final repositoryProvider = Provider<ShopRepository>(
 final authStateProvider = StreamProvider<AuthState>(
   (ref) => Supabase.instance.client.auth.onAuthStateChange,
 );
+final connectivityProvider = StreamProvider<List<ConnectivityResult>>((ref) {
+  return Connectivity().onConnectivityChanged;
+});
+final isOnlineProvider = Provider<bool>((ref) {
+  final results = ref.watch(connectivityProvider).valueOrNull;
+  return results == null || !results.contains(ConnectivityResult.none);
+});
 final shopProvider = AsyncNotifierProvider<ShopController, ShopState>(
   ShopController.new,
 );
@@ -35,6 +45,11 @@ class ShopController extends AsyncNotifier<ShopState> {
   @override
   Future<ShopState> build() => _repo.load();
   String _id() => const Uuid().v4();
+  Future<void> _publish(ShopState next) async {
+    state = AsyncData(next);
+    if (_repo case OfflineCacheRepository cache) await cache.cacheState(next);
+  }
+
   Future<void> _commit(ShopState next) async {
     state = AsyncData(next);
     await _repo.save(next);
@@ -87,7 +102,7 @@ class ShopController extends AsyncNotifier<ShopState> {
       final productWasLoaded = refreshed.products.any(
         (candidate) => candidate.id == product.id,
       );
-      state = AsyncData(
+      await _publish(
         productWasLoaded
             ? refreshed
             : refreshed.copyWith(products: [...refreshed.products, product]),
@@ -102,7 +117,12 @@ class ShopController extends AsyncNotifier<ShopState> {
     final customer = Customer(id: _id(), name: name, phone: phone);
     if (_repo case CustomerDebtCrudRepository crud) {
       await crud.createCustomer(customer);
-      state = AsyncData(await _repo.load());
+      final refreshed = await _repo.load();
+      await _publish(
+        refreshed.customers.any((item) => item.id == customer.id)
+            ? refreshed
+            : refreshed.copyWith(customers: [...refreshed.customers, customer]),
+      );
       return;
     }
     await _commit(s.copyWith(customers: [...s.customers, customer]));
@@ -149,7 +169,12 @@ class ShopController extends AsyncNotifier<ShopState> {
     );
     if (_repo case CustomerDebtCrudRepository crud) {
       await crud.createDebt(debt);
-      state = AsyncData(await _repo.load());
+      final refreshed = await _repo.load();
+      await _publish(
+        refreshed.debts.any((item) => item.id == debt.id)
+            ? refreshed
+            : refreshed.copyWith(debts: [...refreshed.debts, debt]),
+      );
       return;
     }
     await _commit(s.copyWith(debts: [...s.debts, debt]));
@@ -161,6 +186,7 @@ class ShopController extends AsyncNotifier<ShopState> {
     String? customerId,
     bool debt = false,
   }) async {
+    final before = state.requireValue;
     if (_repo case TransactionalShopRepository tx) {
       await tx.createSale(
         productId: productId,
@@ -168,7 +194,36 @@ class ShopController extends AsyncNotifier<ShopState> {
         customerId: customerId,
         debt: debt,
       );
-      state = AsyncData(await _repo.load());
+      final refreshed = await _repo.load();
+      final old = before.products.firstWhere((p) => p.id == productId);
+      final remote = refreshed.products.firstWhere((p) => p.id == productId);
+      if (remote.stock < old.stock) {
+        await _publish(refreshed);
+      } else {
+        final total = old.salePrice * quantity;
+        await _publish(
+          refreshed.copyWith(
+            products: refreshed.products
+                .map(
+                  (p) => p.id == productId
+                      ? p.copyWith(stock: old.stock - quantity)
+                      : p,
+                )
+                .toList(),
+            movements: [
+              ...refreshed.movements,
+              StockMovement(
+                id: _id(),
+                productId: productId,
+                quantity: -quantity,
+                type: MovementType.sale,
+                total: total,
+                createdAt: DateTime.now(),
+              ),
+            ],
+          ),
+        );
+      }
       return;
     }
     final s = state.requireValue;
@@ -217,6 +272,17 @@ class ShopController extends AsyncNotifier<ShopState> {
     String paymentMethod = 'cash',
   }) async {
     if (items.isEmpty) throw const FormatException('Cart is empty');
+    if (!ref.read(isOnlineProvider)) {
+      for (final line in items) {
+        await sell(
+          productId: line.product.id,
+          quantity: line.quantity,
+          customerId: customerId,
+          debt: debt,
+        );
+      }
+      return;
+    }
     if (_repo case TransactionalShopRepository tx) {
       await tx.createSaleCart(
         items: items,
@@ -237,9 +303,38 @@ class ShopController extends AsyncNotifier<ShopState> {
     required String productId,
     required int quantity,
   }) async {
+    final before = state.requireValue;
     if (_repo case TransactionalShopRepository tx) {
       await tx.createPurchase(productId: productId, quantity: quantity);
-      state = AsyncData(await _repo.load());
+      final refreshed = await _repo.load();
+      final old = before.products.firstWhere((p) => p.id == productId);
+      final remote = refreshed.products.firstWhere((p) => p.id == productId);
+      if (remote.stock > old.stock) {
+        await _publish(refreshed);
+      } else {
+        await _publish(
+          refreshed.copyWith(
+            products: refreshed.products
+                .map(
+                  (p) => p.id == productId
+                      ? p.copyWith(stock: old.stock + quantity)
+                      : p,
+                )
+                .toList(),
+            movements: [
+              ...refreshed.movements,
+              StockMovement(
+                id: _id(),
+                productId: productId,
+                quantity: quantity,
+                type: MovementType.purchase,
+                total: old.costPrice * quantity,
+                createdAt: DateTime.now(),
+              ),
+            ],
+          ),
+        );
+      }
       return;
     }
     final s = state.requireValue;
@@ -263,6 +358,12 @@ class ShopController extends AsyncNotifier<ShopState> {
     String? supplierId,
   }) async {
     if (items.isEmpty) throw const FormatException('Cart is empty');
+    if (!ref.read(isOnlineProvider)) {
+      for (final line in items) {
+        await purchase(productId: line.product.id, quantity: line.quantity);
+      }
+      return;
+    }
     if (_repo case TransactionalShopRepository tx) {
       await tx.createPurchaseCart(items: items, supplierId: supplierId);
       final refreshed = await _repo.load();

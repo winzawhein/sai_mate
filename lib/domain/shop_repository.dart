@@ -7,6 +7,10 @@ abstract interface class ShopRepository {
   Future<void> save(ShopState state);
 }
 
+abstract interface class OfflineCacheRepository {
+  Future<void> cacheState(ShopState state);
+}
+
 abstract interface class TransactionalShopRepository {
   Future<void> createSaleCart({
     required List<CartLine> items,

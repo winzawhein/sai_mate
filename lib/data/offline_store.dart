@@ -1,11 +1,18 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../domain/shop_models.dart';
 
 class OfflineStore {
   const OfflineStore();
   String _snapshot(String user) => 'sai_mate.snapshot.$user';
   String _queue(String user) => 'sai_mate.queue.$user';
+  String _shop(String user) => 'sai_mate.shop.$user';
+  Future<void> writeShopId(String user, String shopId) async =>
+      (await SharedPreferences.getInstance()).setString(_shop(user), shopId);
+  Future<String?> readShopId(String user) async =>
+      (await SharedPreferences.getInstance()).getString(_shop(user));
   Future<void> write(String user, ShopState state) async {
     final json = {
       'shopName': state.shopName,

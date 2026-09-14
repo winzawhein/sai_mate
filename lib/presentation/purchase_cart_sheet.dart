@@ -6,7 +6,6 @@ import '../domain/shop_models.dart';
 import 'shop_controller.dart';
 
 const _green = Color(0xFF1C6D5B);
-const _cream = Color(0xFFF7F7F2);
 
 class PurchaseCartController extends StateNotifier<List<CartLine>> {
   PurchaseCartController() : super(const []);
@@ -72,9 +71,9 @@ class PurchaseCartSheet extends ConsumerWidget {
           constraints: BoxConstraints(
             maxHeight: MediaQuery.sizeOf(context).height * .9,
           ),
-          decoration: const BoxDecoration(
-            color: _cream,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             children: [
@@ -139,9 +138,11 @@ class PurchaseCartSheet extends ConsumerWidget {
               ),
               Container(
                 padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
                 ),
                 child: Column(
                   children: [
