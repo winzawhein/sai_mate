@@ -35,6 +35,20 @@ class PurchaseCartController extends StateNotifier<List<CartLine>> {
                 line,
           ];
   }
+
+  void changeCost(String id, int cost) {
+    if (cost < 0) return;
+    state = [
+      for (final line in state)
+        if (line.product.id == id)
+          CartLine(
+            product: line.product.copyWith(costPrice: cost),
+            quantity: line.quantity,
+          )
+        else
+          line,
+    ];
+  }
 }
 
 final purchaseCartProvider =
@@ -146,22 +160,36 @@ class PurchaseCartSheet extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: ref.watch(selectedSupplierProvider),
-                      decoration: const InputDecoration(
-                        labelText: 'ပစ္စည်းပေးသွင်းသူ (မဖြစ်မနေမဟုတ်)',
-                      ),
-                      items: (shop?.suppliers ?? const <Supplier>[])
-                          .map(
-                            (s) => DropdownMenuItem(
-                              value: s.id,
-                              child: Text(s.name),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: ref.watch(selectedSupplierProvider),
+                            decoration: const InputDecoration(
+                              labelText: 'ပစ္စည်းပေးသွင်းသူ',
                             ),
-                          )
-                          .toList(),
-                      onChanged: (id) =>
-                          ref.read(selectedSupplierProvider.notifier).state =
-                              id,
+                            items: (shop?.suppliers ?? const <Supplier>[])
+                                .map(
+                                  (s) => DropdownMenuItem(
+                                    value: s.id,
+                                    child: Text(s.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (id) =>
+                                ref
+                                        .read(selectedSupplierProvider.notifier)
+                                        .state =
+                                    id,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filledTonal(
+                          tooltip: 'ပေးသွင်းသူအသစ် ထည့်ရန်',
+                          onPressed: () => _addSupplier(context, ref),
+                          icon: const Icon(Icons.person_add_alt_1_rounded),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -234,6 +262,56 @@ class PurchaseCartSheet extends ConsumerWidget {
       );
     }
   }
+
+  Future<void> _addSupplier(BuildContext context, WidgetRef ref) async {
+    final name = TextEditingController();
+    final phone = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('ပေးသွင်းသူအသစ်'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: name,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'အမည်'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'ဖုန်းနံပါတ်'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('မလုပ်တော့ပါ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('ထည့်မည်'),
+          ),
+        ],
+      ),
+    );
+    try {
+      if (submitted != true || name.text.trim().isEmpty) return;
+      await ref
+          .read(shopProvider.notifier)
+          .addSupplier(name.text.trim(), phone.text.trim());
+      final suppliers = ref.read(shopProvider).valueOrNull?.suppliers;
+      if (suppliers != null && suppliers.isNotEmpty) {
+        ref.read(selectedSupplierProvider.notifier).state = suppliers.last.id;
+      }
+    } finally {
+      name.dispose();
+      phone.dispose();
+    }
+  }
 }
 
 class PurchaseLineTile extends ConsumerWidget {
@@ -256,6 +334,17 @@ class PurchaseLineTile extends ConsumerWidget {
                 Text(
                   '${NumberFormat('#,##0').format(line.product.costPrice * line.quantity)} Ks',
                   style: const TextStyle(color: _green),
+                ),
+                TextButton.icon(
+                  onPressed: () => _editCost(context, ref),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.edit_rounded, size: 14),
+                  label: Text(
+                    'တစ်ခု ${NumberFormat('#,##0').format(line.product.costPrice)} Ks',
+                  ),
                 ),
               ],
             ),
@@ -280,4 +369,36 @@ class PurchaseLineTile extends ConsumerWidget {
       ),
     ),
   );
+
+  Future<void> _editCost(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController(
+      text: line.product.costPrice.toString(),
+    );
+    final value = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${line.product.name} ဝယ်ဈေး'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(prefixText: 'Ks '),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('မလုပ်တော့ပါ'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, int.tryParse(controller.text)),
+            child: const Text('သတ်မှတ်မည်'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null || value < 0) return;
+    ref.read(purchaseCartProvider.notifier).changeCost(line.product.id, value);
+  }
 }

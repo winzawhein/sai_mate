@@ -1,6 +1,5 @@
 import 'dart:developer' as developer;
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,7 +33,7 @@ Future<void> main() async {
 
 const ink = Color(0xFF18212B);
 const muted = Color(0xFF71808B);
-const cream = Color(0xFFF7F7F2);
+const cream = Colors.white;
 const green = Color(0xFF1C6D5B);
 const mint = Color(0xFFDFF3E9);
 const orange = Color(0xFFFF9E63);
@@ -46,6 +45,10 @@ Color appCardColor(BuildContext context) =>
     Theme.of(context).colorScheme.surfaceContainerHigh;
 Color appLineColor(BuildContext context) =>
     Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .65);
+Color appRaisedSurface(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? const Color(0xFF151515)
+    : const Color(0xFFF7F8F8);
 
 enum EntryType { sale, purchase, customer, debt, product }
 
@@ -90,25 +93,29 @@ class SaiMateApp extends ConsumerWidget {
     theme: ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: cream,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: green,
-        brightness: Brightness.light,
-        surface: cream,
-      ),
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: green,
+            brightness: Brightness.light,
+          ).copyWith(
+            surface: Colors.white,
+            surfaceContainerLowest: Colors.white,
+            surfaceContainerLow: Colors.white,
+            surfaceContainer: Colors.white,
+            surfaceContainerHigh: Colors.white,
+            surfaceContainerHighest: Colors.white,
+          ),
       fontFamily: 'Noto Sans Myanmar',
       cardTheme: CardThemeData(
-        color: Colors.white.withValues(alpha: .58),
-        elevation: 10,
-        shadowColor: const Color(0x29134A40),
+        color: Colors.white,
+        elevation: 2,
+        shadowColor: const Color(0x14000000),
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: line),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withValues(alpha: .62),
+        fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
           borderSide: const BorderSide(color: line),
@@ -119,11 +126,13 @@ class SaiMateApp extends ConsumerWidget {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white.withValues(alpha: .9),
+        backgroundColor: Colors.white,
         elevation: 18,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         modalBarrierColor: Color(0x660A201B),
         showDragHandle: true,
       ),
@@ -131,26 +140,30 @@ class SaiMateApp extends ConsumerWidget {
     darkTheme: ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF0C1513),
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF43C6A8),
-        brightness: Brightness.dark,
-        surface: const Color(0xFF111D1A),
-      ),
+      scaffoldBackgroundColor: Colors.black,
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: const Color(0xFF43C6A8),
+            brightness: Brightness.dark,
+          ).copyWith(
+            surface: Colors.black,
+            surfaceContainerLowest: Colors.black,
+            surfaceContainerLow: Colors.black,
+            surfaceContainer: Colors.black,
+            surfaceContainerHigh: Colors.black,
+            surfaceContainerHighest: Colors.black,
+          ),
       fontFamily: 'Noto Sans Myanmar',
       cardTheme: CardThemeData(
-        color: const Color(0xFF29413B).withValues(alpha: .54),
-        elevation: 12,
-        shadowColor: const Color(0x99000000),
+        color: Colors.black,
+        elevation: 2,
+        shadowColor: const Color(0x66000000),
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFF29403A)),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF29413B).withValues(alpha: .5),
+        fillColor: Colors.black,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
           borderSide: const BorderSide(color: Color(0xFF29403A)),
@@ -161,11 +174,13 @@ class SaiMateApp extends ConsumerWidget {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: const Color(0xFF172522).withValues(alpha: .94),
+        backgroundColor: Colors.black,
         elevation: 24,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.black,
+        surfaceTintColor: Colors.transparent,
         modalBarrierColor: Color(0xAA020806),
         showDragHandle: true,
       ),
@@ -301,11 +316,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 }
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  final Set<int> _builtTabs = {0};
+
+  @override
+  Widget build(BuildContext context) {
     final tab = ref.watch(tabProvider);
+    _builtTabs.add(tab);
     final colors = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final online = ref.watch(isOnlineProvider);
@@ -319,40 +343,18 @@ class AppShell extends ConsumerWidget {
       extendBody: true,
       body: Stack(
         children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: dark
-                      ? const [Color(0xFF07110F), Color(0xFF13312B)]
-                      : const [Color(0xFFF9FAF6), Color(0xFFDFF2EC)],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: -90,
-            top: 170,
-            child: _AmbientOrb(
-              color: const Color(0xFF43C6A8).withValues(alpha: .2),
-              size: 230,
-            ),
-          ),
-          Positioned(
-            right: -80,
-            bottom: 130,
-            child: _AmbientOrb(color: orange.withValues(alpha: .15), size: 210),
-          ),
+          Positioned.fill(child: ColoredBox(color: colors.surface)),
           IndexedStack(
             index: tab,
-            children: const [
-              DashboardPage(),
-              InventoryPage(),
-              CustomersPage(),
-              AdvancedReportsPage(),
-            ],
+            children: List.generate(4, (index) {
+              if (!_builtTabs.contains(index)) return const SizedBox.shrink();
+              return switch (index) {
+                0 => const DashboardPage(),
+                1 => const InventoryPage(),
+                2 => const CustomersPage(),
+                _ => const AdvancedReportsPage(),
+              };
+            }),
           ),
           Positioned(
             top: MediaQuery.paddingOf(context).top,
@@ -386,83 +388,58 @@ class AppShell extends ConsumerWidget {
         ),
       ),
       bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-            child: Container(
-              height: 72,
-              decoration: BoxDecoration(
-                color: colors.surface.withValues(alpha: dark ? .78 : .72),
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: colors.outlineVariant.withValues(alpha: .55),
+        minimum: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+        child: RepaintBoundary(
+          child: Container(
+            height: 66,
+            decoration: BoxDecoration(
+              color: appRaisedSurface(context),
+              borderRadius: BorderRadius.circular(44),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? .24 : .08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: dark ? .32 : .12),
-                    blurRadius: 28,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  AppNavItem(
-                    current: tab,
-                    index: 0,
-                    icon: Icons.home_outlined,
-                    activeIcon: Icons.home,
-                    label: 'ပင်မ',
-                  ),
-                  AppNavItem(
-                    current: tab,
-                    index: 1,
-                    icon: Icons.inventory_2_outlined,
-                    activeIcon: Icons.inventory_2,
-                    label: 'ပစ္စည်း',
-                  ),
-                  AppNavItem(
-                    current: tab,
-                    index: 2,
-                    icon: Icons.people_outline,
-                    activeIcon: Icons.people,
-                    label: 'ဖောက်သည်',
-                  ),
-                  AppNavItem(
-                    current: tab,
-                    index: 3,
-                    icon: Icons.donut_large_outlined,
-                    activeIcon: Icons.donut_large,
-                    label: 'အစီရင်ခံစာ',
-                  ),
-                ],
-              ),
+              ],
+            ),
+            child: Row(
+              children: [
+                AppNavItem(
+                  current: tab,
+                  index: 0,
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home,
+                  label: 'ပင်မ',
+                ),
+                AppNavItem(
+                  current: tab,
+                  index: 1,
+                  icon: Icons.inventory_2_outlined,
+                  activeIcon: Icons.inventory_2,
+                  label: 'ပစ္စည်း',
+                ),
+                AppNavItem(
+                  current: tab,
+                  index: 2,
+                  icon: Icons.people_outline,
+                  activeIcon: Icons.people,
+                  label: 'ဖောက်သည်',
+                ),
+                AppNavItem(
+                  current: tab,
+                  index: 3,
+                  icon: Icons.donut_large_outlined,
+                  activeIcon: Icons.donut_large,
+                  label: 'အစီရင်ခံစာ',
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
-}
-
-class _AmbientOrb extends StatelessWidget {
-  const _AmbientOrb({required this.color, required this.size});
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => IgnorePointer(
-    child: ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 46, sigmaY: 46),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-    ),
-  );
 }
 
 class ConnectionBadge extends StatelessWidget {
@@ -517,29 +494,45 @@ class AppNavItem extends ConsumerWidget {
     final selected = current == index;
     final colors = Theme.of(context).colorScheme;
     return Expanded(
-      child: InkWell(
-        onTap: () {
-          ref.read(searchProvider.notifier).state = '';
-          ref.read(tabProvider.notifier).state = index;
-        },
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              selected ? activeIcon : icon,
-              color: selected ? colors.primary : colors.onSurfaceVariant,
-              size: 23,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? colors.primary : colors.onSurfaceVariant,
+      child: Semantics(
+        label: label,
+        button: true,
+        selected: selected,
+        child: InkResponse(
+          onTap: () {
+            ref.read(searchProvider.notifier).state = '';
+            ref.read(tabProvider.notifier).state = index;
+          },
+          radius: 32,
+          child: Tooltip(
+            message: label,
+            child: Center(
+              child: AnimatedContainer(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: selected ? colors.primary : Colors.transparent,
+                  shape: BoxShape.circle,
+                ),
+                child: AnimatedScale(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutBack,
+                  scale: selected ? 1 : .9,
+                  child: Icon(
+                    selected ? activeIcon : icon,
+                    color: selected
+                        ? colors.onPrimary
+                        : colors.onSurfaceVariant,
+                    size: 24,
+                  ),
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -618,7 +611,10 @@ class DashboardPage extends ConsumerWidget {
                 const SizedBox(height: 10),
                 AppCard(
                   child: Column(
-                    children: products.take(3).map(ProductRow.new).toList(),
+                    children: products
+                        .take(3)
+                        .map((product) => ProductRow(product, divider: true))
+                        .toList(),
                   ),
                 ),
                 const SizedBox(height: 22),
@@ -630,7 +626,10 @@ class DashboardPage extends ConsumerWidget {
                 const SizedBox(height: 10),
                 AppCard(
                   child: Column(
-                    children: customers.take(2).map(CustomerRow.new).toList(),
+                    children: customers
+                        .take(2)
+                        .map((customer) => CustomerRow(customer, divider: true))
+                        .toList(),
                   ),
                 ),
               ],
@@ -836,8 +835,8 @@ class _SaiMateLogoState extends State<SaiMateLogo>
     super.initState();
     animation = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3200),
-    )..repeat();
+      duration: const Duration(milliseconds: 900),
+    )..forward();
   }
 
   @override
@@ -847,59 +846,61 @@ class _SaiMateLogoState extends State<SaiMateLogo>
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: animation,
-    builder: (context, child) {
-      final wave = math.sin(animation.value * math.pi * 2);
-      return Transform.translate(
-        offset: Offset(0, wave * 1.8),
-        child: Transform.scale(
-          scale: 1 + (wave * .018),
-          child: Container(
-            width: 62,
-            height: 62,
-            decoration: BoxDecoration(shape: BoxShape.circle),
-            child: ClipOval(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(
-                    Icons.inventory_2_rounded,
-                    color: Colors.white,
-                    size: 29,
-                  ),
-                  Positioned(
-                    right: 7,
-                    top: 6,
-                    child: Transform.rotate(
-                      angle: animation.value * math.pi * 2,
-                      child: const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: Color(0xFFFFC18B),
-                        size: 13,
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final wave = math.sin(animation.value * math.pi * 2);
+        return Transform.translate(
+          offset: Offset(0, wave * 1.8),
+          child: Transform.scale(
+            scale: 1 + (wave * .018),
+            child: Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(shape: BoxShape.circle),
+              child: ClipOval(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(
+                      Icons.inventory_2_rounded,
+                      color: Colors.white,
+                      size: 29,
+                    ),
+                    Positioned(
+                      right: 7,
+                      top: 6,
+                      child: Transform.rotate(
+                        angle: animation.value * math.pi * 2,
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Color(0xFFFFC18B),
+                          size: 13,
+                        ),
                       ),
                     ),
-                  ),
-                  const Positioned(
-                    bottom: 3,
-                    child: Text(
-                      'SAI MATE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: null,
-                        fontSize: 5.7,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: .55,
+                    const Positioned(
+                      bottom: 3,
+                      child: Text(
+                        'SAI MATE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: null,
+                          fontSize: 5.7,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: .55,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      );
-    },
+        );
+      },
+    ),
   );
 }
 
@@ -1028,21 +1029,13 @@ class QuickAction extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withValues(alpha: .66),
-                appCardColor(context).withValues(alpha: .34),
-              ],
-            ),
-            border: Border.all(color: Colors.white.withValues(alpha: .68)),
+            color: appRaisedSurface(context),
             borderRadius: BorderRadius.circular(15),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x08233228),
-                blurRadius: 10,
-                offset: Offset(0, 3),
+                color: Colors.black.withValues(alpha: .045),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -1063,55 +1056,48 @@ class AppCard extends StatelessWidget {
   const AppCard({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(22),
-    child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white.withValues(
-                alpha: Theme.of(context).brightness == Brightness.dark
-                    ? .19
-                    : .60,
-              ),
-              appCardColor(context).withValues(alpha: .28),
-            ],
-          ),
-          border: Border.all(color: Colors.white.withValues(alpha: .62)),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x26113F36),
-              blurRadius: 28,
-              offset: Offset(0, 12),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: appRaisedSurface(context),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? .24
+                  : .06,
             ),
-          ],
-        ),
-        child: child,
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
+      child: child,
     ),
   );
 }
 
-class ProductRow extends ConsumerWidget {
-  const ProductRow(this.product, {super.key});
+class ProductRow extends StatelessWidget {
+  const ProductRow(this.product, {super.key, this.divider = false});
   final Product product;
+  final bool divider;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final critical = product.stock <= 5;
     final low = product.stock <= 10 && !critical;
     return GestureDetector(
       onLongPress: () => showProductManagement(context, product),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: appLineColor(context))),
-        ),
+        decoration: divider
+            ? BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: appLineColor(context)),
+                ),
+              )
+            : null,
         child: Row(
           children: [
             ProductThumbnail(product: product),
@@ -1219,6 +1205,9 @@ class ProductThumbnail extends ConsumerWidget {
               : Image.network(
                   product.imageUrl!,
                   fit: BoxFit.cover,
+                  cacheWidth: 96,
+                  cacheHeight: 96,
+                  filterQuality: FilterQuality.low,
                   errorBuilder: (context, error, stackTrace) =>
                       const ProductImageFallback(),
                 ),
@@ -1478,17 +1467,20 @@ class ProductImagePickerField extends StatelessWidget {
   );
 }
 
-class CustomerRow extends ConsumerWidget {
-  const CustomerRow(this.customer, {super.key});
+class CustomerRow extends StatelessWidget {
+  const CustomerRow(this.customer, {super.key, this.divider = false});
   final Customer customer;
+  final bool divider;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => GestureDetector(
+  Widget build(BuildContext context) => GestureDetector(
     onLongPress: () => showCustomerManagement(context, customer),
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: appLineColor(context))),
-      ),
+      decoration: divider
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: appLineColor(context))),
+            )
+          : null,
       child: Row(
         children: [
           CircleAvatar(
@@ -1553,9 +1545,8 @@ class InventoryPage extends ConsumerWidget {
         context,
         onCreateNew: () => showEntrySheet(context, EntryType.product),
       ),
-      child: AppCard(
-        child: Column(children: items.map(ProductRow.new).toList()),
-      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) => ProductRow(items[index]),
     );
   }
 }
@@ -1574,9 +1565,8 @@ class CustomersPage extends ConsumerWidget {
       hint: 'ဖောက်သည်ရှာရန်...',
       count: 'ဖောက်သည် · ${items.length}',
       onAdd: () => showEntrySheet(context, EntryType.customer),
-      child: AppCard(
-        child: Column(children: items.map(CustomerRow.new).toList()),
-      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) => CustomerRow(items[index]),
     );
   }
 }
@@ -1588,38 +1578,74 @@ class ListPage extends ConsumerWidget {
     required this.hint,
     required this.count,
     required this.onAdd,
-    required this.child,
+    required this.itemCount,
+    required this.itemBuilder,
   });
   final String title, hint, count;
   final VoidCallback onAdd;
-  final Widget child;
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
   @override
   Widget build(BuildContext context, WidgetRef ref) => SafeArea(
     bottom: false,
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(18, 25, 18, 110),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            onChanged: (v) => ref.read(searchProvider.notifier).state = v,
-            decoration: InputDecoration(
-              hintText: hint,
-              prefixIcon: const Icon(Icons.search),
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+    child: CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(18, 25, 18, 10),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  onChanged: (v) => ref.read(searchProvider.notifier).state = v,
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    prefixIcon: const Icon(Icons.search),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SectionTitle(count, action: '＋ ထည့်မည်', onTap: onAdd),
+              ],
             ),
           ),
-          const SizedBox(height: 18),
-          SectionTitle(count, action: '＋ ထည့်မည်', onTap: onAdd),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 110),
+          sliver: SliverList.builder(
+            itemCount: itemCount,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: RepaintBoundary(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: appRaisedSurface(context),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .035),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: itemBuilder(context, index),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }

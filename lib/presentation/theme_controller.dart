@@ -7,7 +7,7 @@ final themeModeProvider = StateNotifierProvider<ThemeModeController, ThemeMode>(
 );
 
 class ThemeModeController extends StateNotifier<ThemeMode> {
-  ThemeModeController() : super(ThemeMode.system) {
+  ThemeModeController() : super(ThemeMode.light) {
     _restore();
   }
 
@@ -18,7 +18,7 @@ class ThemeModeController extends StateNotifier<ThemeMode> {
     if (!mounted || value == null) return;
     state = ThemeMode.values.firstWhere(
       (mode) => mode.name == value,
-      orElse: () => ThemeMode.system,
+      orElse: () => ThemeMode.light,
     );
   }
 

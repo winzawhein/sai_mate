@@ -17,9 +17,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('ဆိုင်အခြေအနေ'), findsOneWidget);
+    expect(find.text('အမြန်လုပ်ဆောင်ရန်'), findsOneWidget);
     expect(find.text('ပစ္စည်းလက်ကျန်'), findsOneWidget);
     expect(find.text('ရောင်းမည်'), findsOneWidget);
-    expect(find.text('ပင်မ'), findsOneWidget);
+    expect(find.byIcon(Icons.home), findsOneWidget);
   });
 }

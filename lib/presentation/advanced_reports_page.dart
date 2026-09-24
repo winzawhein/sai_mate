@@ -10,9 +10,15 @@ const _green = Color(0xFF1C6D5B), _orange = Color(0xFFFF9E63);
 
 enum ReportPeriod { week, month, year }
 
+enum TransactionFilter { all, sales, purchases }
+
 final reportPeriodProvider = StateProvider<ReportPeriod>(
   (ref) => ReportPeriod.month,
 );
+final transactionFilterProvider = StateProvider.autoDispose<TransactionFilter>(
+  (ref) => TransactionFilter.all,
+);
+final transactionQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 final transactionHistoryProvider = FutureProvider<List<TransactionRecord>>((
   ref,
 ) async {
@@ -94,7 +100,9 @@ class ReportOverview extends ConsumerWidget {
     final purchases = filtered
         .where((r) => !r.sale)
         .fold<int>(0, (s, r) => s + r.total);
-    final profit = sales - purchases;
+    final profit = filtered
+        .where((record) => record.sale)
+        .fold<int>(0, (sum, record) => sum + record.grossProfit);
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
@@ -175,17 +183,80 @@ class MetricCard extends StatelessWidget {
   );
 }
 
-class TransactionHistory extends StatelessWidget {
+class TransactionHistory extends ConsumerWidget {
   const TransactionHistory({super.key, required this.records});
   final List<TransactionRecord> records;
   @override
-  Widget build(BuildContext context) => records.isEmpty
-      ? const Center(child: Text('မှတ်တမ်းမရှိသေးပါ'))
-      : ListView.builder(
-          padding: const EdgeInsets.all(14),
-          itemCount: records.length,
-          itemBuilder: (_, i) => TransactionTile(record: records[i]),
-        );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(transactionFilterProvider);
+    final query = ref.watch(transactionQueryProvider).trim().toLowerCase();
+    final filtered = records.where((record) {
+      final typeMatches = switch (filter) {
+        TransactionFilter.all => true,
+        TransactionFilter.sales => record.sale,
+        TransactionFilter.purchases => !record.sale,
+      };
+      if (!typeMatches) return false;
+      if (query.isEmpty) return true;
+      return (record.partyName?.toLowerCase().contains(query) ?? false) ||
+          record.lines.any((line) => line.name.toLowerCase().contains(query));
+    }).toList();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+          child: Column(
+            children: [
+              TextField(
+                onChanged: (value) =>
+                    ref.read(transactionQueryProvider.notifier).state = value,
+                decoration: const InputDecoration(
+                  hintText: 'ဖောက်သည်၊ ပေးသွင်းသူ၊ ပစ္စည်း ရှာရန်',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<TransactionFilter>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: TransactionFilter.all,
+                      label: Text('အားလုံး'),
+                    ),
+                    ButtonSegment(
+                      value: TransactionFilter.sales,
+                      label: Text('အရောင်း'),
+                    ),
+                    ButtonSegment(
+                      value: TransactionFilter.purchases,
+                      label: Text('အဝယ်'),
+                    ),
+                  ],
+                  selected: {filter},
+                  onSelectionChanged: (values) =>
+                      ref.read(transactionFilterProvider.notifier).state =
+                          values.first,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: filtered.isEmpty
+              ? const Center(child: Text('ကိုက်ညီသော မှတ်တမ်းမရှိပါ'))
+              : ListView.builder(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 110),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) => TransactionTile(record: filtered[i]),
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 class TransactionTile extends ConsumerWidget {

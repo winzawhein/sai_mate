@@ -34,10 +34,14 @@ final searchProvider = StateProvider<String>((ref) => '');
 final selectedProductProvider = StateProvider<String?>((ref) => null);
 final selectedCustomerProvider = StateProvider<String?>((ref) => null);
 final productsProvider = Provider<List<Product>>(
-  (ref) => ref.watch(shopProvider).valueOrNull?.products ?? const [],
+  (ref) => ref.watch(
+    shopProvider.select((state) => state.valueOrNull?.products ?? const []),
+  ),
 );
 final customersProvider = Provider<List<Customer>>(
-  (ref) => ref.watch(shopProvider).valueOrNull?.customers ?? const [],
+  (ref) => ref.watch(
+    shopProvider.select((state) => state.valueOrNull?.customers ?? const []),
+  ),
 );
 
 class ShopController extends AsyncNotifier<ShopState> {

@@ -41,6 +41,10 @@ final saleCartProvider =
 final saleCreditProvider = StateProvider.autoDispose<bool>((ref) => false);
 final saleCustomerProvider = StateProvider.autoDispose<String?>((ref) => null);
 final saleDiscountProvider = StateProvider.autoDispose<int>((ref) => 0);
+final saleReceivedProvider = StateProvider.autoDispose<int>((ref) => 0);
+final salePaymentMethodProvider = StateProvider.autoDispose<String>(
+  (ref) => 'cash',
+);
 
 class SaleCartSheet extends ConsumerWidget {
   const SaleCartSheet({super.key});
@@ -51,8 +55,13 @@ class SaleCartSheet extends ConsumerWidget {
     final cart = ref.watch(saleCartProvider);
     final credit = ref.watch(saleCreditProvider);
     final discount = ref.watch(saleDiscountProvider);
+    final received = ref.watch(saleReceivedProvider);
+    final paymentMethod = ref.watch(salePaymentMethodProvider);
     final subtotal = cart.fold<int>(0, (sum, line) => sum + line.total);
     final total = (subtotal - discount).clamp(0, subtotal);
+    final change = credit || paymentMethod != 'cash'
+        ? 0
+        : (received - total).clamp(0, received);
     final availableProducts = <String, Product>{
       for (final product in shop?.products ?? const <Product>[])
         if (product.stock > 0) product.id: product,
@@ -178,6 +187,28 @@ class SaleCartSheet extends ConsumerWidget {
                         ),
                       ],
                     ),
+                    if (!credit) ...[
+                      SegmentedButton<String>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(
+                            value: 'cash',
+                            icon: Icon(Icons.payments_rounded),
+                            label: Text('ငွေသား'),
+                          ),
+                          ButtonSegment(
+                            value: 'mobile',
+                            icon: Icon(Icons.phone_android_rounded),
+                            label: Text('Mobile Pay'),
+                          ),
+                        ],
+                        selected: {paymentMethod},
+                        onSelectionChanged: (values) =>
+                            ref.read(salePaymentMethodProvider.notifier).state =
+                                values.first,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     TextField(
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
@@ -188,6 +219,19 @@ class SaleCartSheet extends ConsumerWidget {
                           ref.read(saleDiscountProvider.notifier).state =
                               int.tryParse(value) ?? 0,
                     ),
+                    if (!credit && paymentMethod == 'cash') ...[
+                      const SizedBox(height: 10),
+                      TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'လက်ခံရရှိငွေ',
+                          prefixText: 'Ks ',
+                        ),
+                        onChanged: (value) =>
+                            ref.read(saleReceivedProvider.notifier).state =
+                                int.tryParse(value) ?? 0,
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -206,6 +250,22 @@ class SaleCartSheet extends ConsumerWidget {
                         ),
                       ],
                     ),
+                    if (!credit && paymentMethod == 'cash') ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('ပြန်အမ်းငွေ'),
+                          Text(
+                            '${NumberFormat('#,##0').format(change)} Ks',
+                            style: const TextStyle(
+                              color: _green,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
@@ -214,7 +274,11 @@ class SaleCartSheet extends ConsumerWidget {
                           backgroundColor: _green,
                           padding: const EdgeInsets.all(15),
                         ),
-                        onPressed: cart.isEmpty
+                        onPressed:
+                            cart.isEmpty ||
+                                (!credit &&
+                                    paymentMethod == 'cash' &&
+                                    received < total)
                             ? null
                             : () => _checkout(
                                 context,
@@ -222,6 +286,9 @@ class SaleCartSheet extends ConsumerWidget {
                                 cart,
                                 credit,
                                 discount,
+                                total,
+                                received,
+                                paymentMethod,
                               ),
                         child: const Text('အရောင်းအတည်ပြုမည်'),
                       ),
@@ -242,8 +309,12 @@ class SaleCartSheet extends ConsumerWidget {
     List<CartLine> cart,
     bool credit,
     int discount,
+    int total,
+    int received,
+    String paymentMethod,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     try {
       final customer = ref.read(saleCustomerProvider);
       if (credit && customer == null) {
@@ -256,13 +327,31 @@ class SaleCartSheet extends ConsumerWidget {
             customerId: customer,
             debt: credit,
             discount: discount,
+            paymentMethod: credit ? 'credit' : paymentMethod,
           );
       if (!context.mounted) return;
-      Navigator.pop(context);
+      navigator.pop();
       messenger.showSnackBar(
         const SnackBar(
           content: Text('အရောင်းပြီးမြောက်ပါပြီ ✓'),
           backgroundColor: _green,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 180));
+      if (!navigator.mounted) return;
+      await showModalBottomSheet<void>(
+        context: navigator.context,
+        useSafeArea: true,
+        showDragHandle: true,
+        builder: (_) => SaleReceiptSheet(
+          lines: cart,
+          discount: discount,
+          total: total,
+          received: credit || paymentMethod != 'cash' ? total : received,
+          change: credit || paymentMethod != 'cash'
+              ? 0
+              : (received - total).clamp(0, received),
+          paymentMethod: credit ? 'credit' : paymentMethod,
         ),
       );
     } catch (error) {
@@ -275,6 +364,126 @@ class SaleCartSheet extends ConsumerWidget {
       );
     }
   }
+}
+
+class SaleReceiptSheet extends StatelessWidget {
+  const SaleReceiptSheet({
+    super.key,
+    required this.lines,
+    required this.discount,
+    required this.total,
+    required this.received,
+    required this.change,
+    required this.paymentMethod,
+  });
+
+  final List<CartLine> lines;
+  final int discount, total, received, change;
+  final String paymentMethod;
+
+  @override
+  Widget build(BuildContext context) {
+    final format = NumberFormat('#,##0');
+    final methodLabel = switch (paymentMethod) {
+      'credit' => 'အကြွေး',
+      'mobile' => 'Mobile Pay',
+      _ => 'ငွေသား',
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const CircleAvatar(
+            radius: 28,
+            backgroundColor: Color(0xFFE1F3E9),
+            child: Icon(Icons.check_rounded, color: _green, size: 32),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'အရောင်းပြီးမြောက်ပါပြီ',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 16),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: lines.length,
+              separatorBuilder: (_, _) => const Divider(height: 16),
+              itemBuilder: (_, index) {
+                final line = lines[index];
+                return Row(
+                  children: [
+                    Expanded(child: Text(line.product.name)),
+                    Text(
+                      '${line.quantity} × ${format.format(line.product.salePrice)}',
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+          _ReceiptAmount(label: 'ပေးချေမှု', value: methodLabel),
+          if (discount > 0)
+            _ReceiptAmount(
+              label: 'လျှော့စျေး',
+              value: '${format.format(discount)} Ks',
+            ),
+          _ReceiptAmount(
+            label: 'စုစုပေါင်း',
+            value: '${format.format(total)} Ks',
+            strong: true,
+          ),
+          if (paymentMethod == 'cash') ...[
+            _ReceiptAmount(
+              label: 'လက်ခံငွေ',
+              value: '${format.format(received)} Ks',
+            ),
+            _ReceiptAmount(
+              label: 'ပြန်အမ်းငွေ',
+              value: '${format.format(change)} Ks',
+              strong: true,
+            ),
+          ],
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ပြီးပါပြီ'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReceiptAmount extends StatelessWidget {
+  const _ReceiptAmount({
+    required this.label,
+    required this.value,
+    this.strong = false,
+  });
+  final String label, value;
+  final bool strong;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label),
+        Text(
+          value,
+          style: TextStyle(
+            color: strong ? _green : null,
+            fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class CartLineTile extends ConsumerWidget {

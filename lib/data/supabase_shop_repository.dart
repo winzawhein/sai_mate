@@ -212,14 +212,7 @@ class SupabaseShopRepository
   Future<List<TransactionRecord>> loadTransactions() async {
     final shopId = await _shop();
     final results = await Future.wait([
-      client
-          .from('sales')
-          .select(
-            'id,total,created_at,customers(name),sale_items(product_id,quantity,unit_price,products(name))',
-          )
-          .eq('shop_id', shopId)
-          .order('created_at', ascending: false)
-          .limit(100),
+      _loadSalesHistory(shopId),
       client
           .from('purchases')
           .select(
@@ -244,6 +237,10 @@ class SupabaseShopRepository
             name: (line['products'] as Map?)?['name'] as String? ?? 'Product',
             quantity: (line['quantity'] as num).toInt(),
             unitPrice: (line['unit_price'] as num).toInt(),
+            unitCost:
+                (line['cost_basis'] as num?)?.toInt() ??
+                ((line['products'] as Map?)?['cost_price'] as num?)?.toInt() ??
+                0,
           );
         }).toList(),
       );
@@ -263,12 +260,36 @@ class SupabaseShopRepository
             name: (line['products'] as Map?)?['name'] as String? ?? 'Product',
             quantity: (line['quantity'] as num).toInt(),
             unitPrice: (line['unit_cost'] as num).toInt(),
+            unitCost: (line['unit_cost'] as num).toInt(),
           );
         }).toList(),
       );
     });
     return [...sales, ...purchases]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  Future<List<Map<String, dynamic>>> _loadSalesHistory(String shopId) async {
+    const base =
+        'id,total,created_at,customers(name),sale_items(product_id,quantity,unit_price,products(name,cost_price))';
+    const withCost =
+        'id,total,created_at,customers(name),sale_items(product_id,quantity,unit_price,cost_basis,products(name,cost_price))';
+    try {
+      return await client
+          .from('sales')
+          .select(withCost)
+          .eq('shop_id', shopId)
+          .order('created_at', ascending: false)
+          .limit(100);
+    } on PostgrestException {
+      // Older deployments remain usable until upgrade_v4.sql is installed.
+      return client
+          .from('sales')
+          .select(base)
+          .eq('shop_id', shopId)
+          .order('created_at', ascending: false)
+          .limit(100);
+    }
   }
 
   @override

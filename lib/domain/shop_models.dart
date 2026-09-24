@@ -29,10 +29,12 @@ class TransactionLine {
     required this.name,
     required this.quantity,
     required this.unitPrice,
+    this.unitCost = 0,
   });
   final String productId, name;
-  final int quantity, unitPrice;
+  final int quantity, unitPrice, unitCost;
   int get total => quantity * unitPrice;
+  int get grossProfit => quantity * (unitPrice - unitCost);
 }
 
 class TransactionRecord {
@@ -50,6 +52,8 @@ class TransactionRecord {
   final DateTime createdAt;
   final String? partyName;
   final List<TransactionLine> lines;
+  int get grossProfit =>
+      sale ? lines.fold(0, (sum, line) => sum + line.grossProfit) : 0;
 }
 
 class Product {
