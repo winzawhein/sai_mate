@@ -7,18 +7,18 @@ final themeModeProvider = StateNotifierProvider<ThemeModeController, ThemeMode>(
 );
 
 class ThemeModeController extends StateNotifier<ThemeMode> {
-  ThemeModeController() : super(ThemeMode.light) {
+  ThemeModeController() : super(ThemeMode.dark) {
     _restore();
   }
 
-  static const _key = 'sai_mate_theme_mode';
+  static const _key = 'sai_mate_pos_theme_mode';
 
   Future<void> _restore() async {
     final value = (await SharedPreferences.getInstance()).getString(_key);
     if (!mounted || value == null) return;
     state = ThemeMode.values.firstWhere(
       (mode) => mode.name == value,
-      orElse: () => ThemeMode.light,
+      orElse: () => ThemeMode.dark,
     );
   }
 

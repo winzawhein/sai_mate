@@ -17,7 +17,8 @@ class SupabaseShopRepository
         ProductCrudRepository,
         CustomerDebtCrudRepository,
         RecordManagementRepository,
-        HistoryRepository {
+        HistoryRepository,
+        ExpenseRepository {
   SupabaseShopRepository(this.client);
   final SupabaseClient client;
   String? _shopId;
@@ -227,6 +228,8 @@ class SupabaseShopRepository
       return TransactionRecord(
         id: row['id'],
         sale: true,
+        paymentMethod: row['payment_method'] as String? ?? 'unknown',
+        paid: (row['paid'] as num?)?.toInt(),
         total: (row['total'] as num).toInt(),
         createdAt: DateTime.parse(row['created_at']),
         partyName: (row['customers'] as Map?)?['name'] as String?,
@@ -271,9 +274,9 @@ class SupabaseShopRepository
 
   Future<List<Map<String, dynamic>>> _loadSalesHistory(String shopId) async {
     const base =
-        'id,total,created_at,customers(name),sale_items(product_id,quantity,unit_price,products(name,cost_price))';
+        'id,total,paid,payment_method,created_at,customers(name),sale_items(product_id,quantity,unit_price,products(name,cost_price))';
     const withCost =
-        'id,total,created_at,customers(name),sale_items(product_id,quantity,unit_price,cost_basis,products(name,cost_price))';
+        'id,total,paid,payment_method,created_at,customers(name),sale_items(product_id,quantity,unit_price,cost_basis,products(name,cost_price))';
     try {
       return await client
           .from('sales')
@@ -310,6 +313,55 @@ class SupabaseShopRepository
   }
 
   @override
+  Future<List<Expense>> loadExpenses() async {
+    try {
+      final rows = await client
+          .from('expenses')
+          .select()
+          .eq('shop_id', await _shop())
+          .order('created_at', ascending: false)
+          .limit(200);
+      return rows.map(Expense.fromJson).toList();
+    } on PostgrestException catch (error) {
+      if (error.code == '42P01' || error.code == 'PGRST205') return const [];
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> createExpense(Expense expense) async {
+    final values = {
+      'id': expense.id,
+      'shop_id': await _shop(),
+      'title': expense.title,
+      'category': expense.category,
+      'note': expense.note.isEmpty ? null : expense.note,
+      'amount': expense.amount,
+      'created_by': client.auth.currentUser!.id,
+      'created_at': expense.createdAt.toUtc().toIso8601String(),
+    };
+    try {
+      await client.from('expenses').insert(values);
+    } catch (error) {
+      if (error is PostgrestException) rethrow;
+      await _offline.enqueue(client.auth.currentUser!.id, {
+        'kind': 'insert',
+        'table': 'expenses',
+        'values': values,
+      });
+    }
+  }
+
+  @override
+  Future<void> deleteExpense(String expenseId) async {
+    await client
+        .from('expenses')
+        .delete()
+        .eq('id', expenseId)
+        .eq('shop_id', await _shop());
+  }
+
+  @override
   Future<void> createSupplier(Supplier supplier) async {
     await client.from('suppliers').insert({
       'id': supplier.id,
@@ -327,6 +379,8 @@ class SupabaseShopRepository
       'customer_id': debt.customerId,
       'amount': debt.amount,
       'paid': debt.paid,
+      'due_date': debt.dueDate?.toIso8601String().split('T').first,
+      'note': debt.note.isEmpty ? null : debt.note,
       'created_at': debt.createdAt.toUtc().toIso8601String(),
     };
     try {

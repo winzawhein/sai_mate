@@ -45,15 +45,43 @@ class TransactionRecord {
     required this.createdAt,
     required this.lines,
     this.partyName,
+    this.paymentMethod = 'unknown',
+    this.paid,
   });
   final String id;
   final bool sale;
   final int total;
   final DateTime createdAt;
   final String? partyName;
+  final String paymentMethod;
+  final int? paid;
   final List<TransactionLine> lines;
   int get grossProfit =>
       sale ? lines.fold(0, (sum, line) => sum + line.grossProfit) : 0;
+}
+
+class Expense {
+  const Expense({
+    required this.id,
+    required this.title,
+    required this.amount,
+    required this.createdAt,
+    this.category = 'General',
+    this.note = '',
+  });
+
+  final String id, title, category, note;
+  final int amount;
+  final DateTime createdAt;
+
+  factory Expense.fromJson(Map<String, dynamic> json) => Expense(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    category: json['category'] as String? ?? 'General',
+    note: json['note'] as String? ?? '',
+    amount: (json['amount'] as num).toInt(),
+    createdAt: DateTime.parse(json['created_at'] as String),
+  );
 }
 
 class Product {
@@ -159,17 +187,25 @@ class Debt {
     required this.amount,
     required this.paid,
     required this.createdAt,
+    this.dueDate,
+    this.note = '',
   });
   final String id, customerId;
+  final String note;
   final int amount, paid;
   final DateTime createdAt;
+  final DateTime? dueDate;
   int get balance => amount - paid;
+  bool get overdue =>
+      balance > 0 && dueDate != null && dueDate!.isBefore(DateTime.now());
   Debt copyWith({int? paid}) => Debt(
     id: id,
     customerId: customerId,
     amount: amount,
     paid: paid ?? this.paid,
     createdAt: createdAt,
+    dueDate: dueDate,
+    note: note,
   );
   factory Debt.fromJson(Map<String, dynamic> j) => Debt(
     id: j['id'] as String,
@@ -177,6 +213,10 @@ class Debt {
     amount: (j['amount'] as num).toInt(),
     paid: (j['paid'] as num).toInt(),
     createdAt: DateTime.parse(j['created_at'] as String),
+    dueDate: j['due_date'] == null
+        ? null
+        : DateTime.parse(j['due_date'] as String),
+    note: j['note'] as String? ?? '',
   );
 }
 

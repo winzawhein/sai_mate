@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../domain/shop_models.dart';
 import '../domain/shop_repository.dart';
 import 'shop_controller.dart';
 
-const _green = Color(0xFF1C6D5B), _orange = Color(0xFFFF9E63);
+const _green = Color(0xFFA5EF55), _orange = Color(0xFFFFEA4D);
 
 enum ReportPeriod { week, month, year }
 
@@ -30,12 +31,19 @@ final transactionHistoryProvider = FutureProvider<List<TransactionRecord>>((
   if (repo is! HistoryRepository) return const [];
   return (repo as HistoryRepository).loadTransactions();
 });
+final expensesProvider = FutureProvider<List<Expense>>((ref) async {
+  ref.watch(shopProvider);
+  final repository = ref.watch(repositoryProvider);
+  if (repository is! ExpenseRepository) return const [];
+  return (repository as ExpenseRepository).loadExpenses();
+});
 
 class AdvancedReportsPage extends ConsumerWidget {
   const AdvancedReportsPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final history = ref.watch(transactionHistoryProvider);
+    final expenses = ref.watch(expensesProvider).valueOrNull ?? const [];
     final period = ref.watch(reportPeriodProvider);
     return SafeArea(
       child: DefaultTabController(
@@ -50,9 +58,20 @@ class AdvancedReportsPage extends ConsumerWidget {
                 style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
               ),
             ),
-            const TabBar(
-              labelColor: _green,
-              indicatorColor: _green,
+            TabBar(
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicatorPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 5,
+              ),
+              indicator: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary
+                    .withValues(alpha: .13),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              labelColor: Theme.of(context).colorScheme.primary,
+              indicatorColor: Theme.of(context).colorScheme.primary,
+              dividerColor: Colors.transparent,
               tabs: [
                 Tab(text: 'သုံးသပ်ချက်'),
                 Tab(text: 'မှတ်တမ်း'),
@@ -62,7 +81,11 @@ class AdvancedReportsPage extends ConsumerWidget {
               child: history.when(
                 data: (records) => TabBarView(
                   children: [
-                    ReportOverview(records: records, period: period),
+                    ReportOverview(
+                      records: records,
+                      expenses: expenses,
+                      period: period,
+                    ),
                     TransactionHistory(records: records),
                   ],
                 ),
@@ -81,9 +104,11 @@ class ReportOverview extends ConsumerWidget {
   const ReportOverview({
     super.key,
     required this.records,
+    required this.expenses,
     required this.period,
   });
   final List<TransactionRecord> records;
+  final List<Expense> expenses;
   final ReportPeriod period;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -103,10 +128,34 @@ class ReportOverview extends ConsumerWidget {
     final profit = filtered
         .where((record) => record.sale)
         .fold<int>(0, (sum, record) => sum + record.grossProfit);
+    final periodExpenses = expenses
+        .where((expense) => expense.createdAt.isAfter(start))
+        .fold<int>(0, (sum, expense) => sum + expense.amount);
+    final netProfit = profit - periodExpenses;
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
         SegmentedButton<ReportPeriod>(
+          showSelectedIcon: false,
+          style: ButtonStyle(
+            side: const WidgetStatePropertyAll(BorderSide.none),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(vertical: 14),
+            ),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            backgroundColor: WidgetStateProperty.resolveWith(
+              (states) => states.contains(WidgetState.selected)
+                  ? _green
+                  : Theme.of(context).colorScheme.surfaceContainerHigh,
+            ),
+            foregroundColor: WidgetStateProperty.resolveWith(
+              (states) => states.contains(WidgetState.selected)
+                  ? Colors.black
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           segments: const [
             ButtonSegment(value: ReportPeriod.week, label: Text('၇ ရက်')),
             ButtonSegment(value: ReportPeriod.month, label: Text('ဒီလ')),
@@ -142,6 +191,35 @@ class ReportOverview extends ConsumerWidget {
           value: profit,
           color: profit >= 0 ? _green : Colors.red,
         ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: MetricCard(
+                title: 'အသုံးစရိတ်',
+                value: periodExpenses,
+                color: Colors.redAccent,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: MetricCard(
+                title: 'အသားတင်အမြတ်',
+                value: netProfit,
+                color: netProfit >= 0 ? _green : Colors.red,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: () => _showExpenseSheet(context, ref),
+            icon: const Icon(Icons.receipt_long_rounded),
+            label: const Text('အသုံးစရိတ် ထည့်မည်'),
+          ),
+        ),
         const SizedBox(height: 18),
         Text(
           'လုပ်ဆောင်မှု ${filtered.length} ခု',
@@ -149,6 +227,33 @@ class ReportOverview extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _showExpenseSheet(BuildContext context, WidgetRef ref) async {
+    final expense = await showModalBottomSheet<Expense>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (_) => const ExpenseEntrySheet(),
+    );
+    if (expense == null || !context.mounted) return;
+    try {
+      final repository = ref.read(repositoryProvider);
+      if (repository is! ExpenseRepository) return;
+      await (repository as ExpenseRepository).createExpense(expense);
+      ref.invalidate(expensesProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('အသုံးစရိတ် သိမ်းပြီးပါပြီ ✓')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 }
 
@@ -168,11 +273,20 @@ class MetricCard extends StatelessWidget {
     decoration: BoxDecoration(
       color: color.withValues(alpha: .11),
       borderRadius: BorderRadius.circular(18),
+      boxShadow: const [
+        BoxShadow(color: Color(0x33000000), offset: Offset(4, 5)),
+      ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: TextStyle(color: color, fontSize: 11)),
+        Text(
+          title,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 11,
+          ),
+        ),
         const SizedBox(height: 6),
         Text(
           '${NumberFormat('#,##0').format(value)} Ks',
@@ -266,11 +380,6 @@ class TransactionTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(22),
-      side: BorderSide(
-        color: Colors.white.withValues(
-          alpha: Theme.of(context).brightness == Brightness.dark ? .12 : .6,
-        ),
-      ),
     );
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -351,4 +460,108 @@ class TransactionTile extends ConsumerWidget {
       }
     }
   }
+}
+
+class ExpenseEntrySheet extends StatefulWidget {
+  const ExpenseEntrySheet({super.key});
+  @override
+  State<ExpenseEntrySheet> createState() => _ExpenseEntrySheetState();
+}
+
+class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
+  final title = TextEditingController();
+  final amount = TextEditingController();
+  final note = TextEditingController();
+  var category = 'General';
+  String? error;
+  @override
+  void dispose() {
+    title.dispose();
+    amount.dispose();
+    note.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = int.tryParse(amount.text.trim()) ?? 0;
+    if (title.text.trim().isEmpty || value <= 0) {
+      setState(() => error = 'အကြောင်းအရာနှင့် ပမာဏ ထည့်ပါ');
+      return;
+    }
+    Navigator.pop(
+      context,
+      Expense(
+        id: const Uuid().v4(),
+        title: title.text.trim(),
+        amount: value,
+        category: category,
+        note: note.text.trim(),
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: EdgeInsets.fromLTRB(
+      20,
+      4,
+      20,
+      20 + MediaQuery.viewInsetsOf(context).bottom,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'အသုံးစရိတ်အသစ်',
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: title,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'အကြောင်းအရာ'),
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          initialValue: category,
+          decoration: const InputDecoration(labelText: 'အမျိုးအစား'),
+          items: const [
+            DropdownMenuItem(value: 'General', child: Text('အထွေထွေ')),
+            DropdownMenuItem(value: 'Rent', child: Text('ဆိုင်ခန်းငှား')),
+            DropdownMenuItem(value: 'Utility', child: Text('မီး/ရေ')),
+            DropdownMenuItem(
+              value: 'Transport',
+              child: Text('သယ်ယူပို့ဆောင်ရေး'),
+            ),
+            DropdownMenuItem(value: 'Salary', child: Text('လစာ')),
+          ],
+          onChanged: (value) => setState(() => category = value ?? 'General'),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: amount,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'ပမာဏ',
+            prefixText: 'Ks ',
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: note,
+          maxLines: 2,
+          decoration: const InputDecoration(labelText: 'မှတ်ချက်'),
+        ),
+        if (error != null)
+          Text(
+            error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        const SizedBox(height: 16),
+        FilledButton(onPressed: _submit, child: const Text('သိမ်းမည်')),
+      ],
+    ),
+  );
 }

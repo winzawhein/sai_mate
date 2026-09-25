@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../domain/shop_models.dart';
 import 'shop_controller.dart';
 
-const _green = Color(0xFF1C6D5B);
+const _green = Color(0xFFA5EF55);
 
 final inventoryChooserSearchProvider = StateProvider.autoDispose<String>(
   (ref) => '',
@@ -103,13 +103,7 @@ class InventoryAddSheet extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(18),
                 clipBehavior: Clip.antiAlias,
                 child: Ink(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF087C67), Color(0xFF14584D)],
-                    ),
-                  ),
+                  decoration: const BoxDecoration(color: Color(0xFFA5EF55)),
                   child: InkWell(
                     onTap: () {
                       Navigator.pop(
@@ -129,7 +123,7 @@ class InventoryAddSheet extends ConsumerWidget {
                             backgroundColor: Color(0x33FFFFFF),
                             child: Icon(
                               Icons.add_box_rounded,
-                              color: Colors.white,
+                              color: Color(0xFF18212B),
                               size: 25,
                             ),
                           ),
@@ -141,7 +135,7 @@ class InventoryAddSheet extends ConsumerWidget {
                                 Text(
                                   'ပစ္စည်းအသစ် ဖန်တီးမည်',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: Color(0xFF18212B),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -150,7 +144,7 @@ class InventoryAddSheet extends ConsumerWidget {
                                 Text(
                                   'စာရင်းထဲတွင် မရှိသေးသောပစ္စည်း',
                                   style: TextStyle(
-                                    color: Color(0xCCFFFFFF),
+                                    color: Color(0xFF34402C),
                                     fontSize: 10,
                                   ),
                                 ),
@@ -159,7 +153,7 @@ class InventoryAddSheet extends ConsumerWidget {
                           ),
                           Icon(
                             Icons.arrow_forward_rounded,
-                            color: Colors.white,
+                            color: Color(0xFF18212B),
                           ),
                         ],
                       ),

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../domain/shop_models.dart';
 import 'shop_controller.dart';
 
-const _green = Color(0xFF1C6D5B);
+const _green = Color(0xFFA5EF55);
 
 class PurchaseCartController extends StateNotifier<List<CartLine>> {
   PurchaseCartController() : super(const []);

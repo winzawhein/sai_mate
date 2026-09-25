@@ -161,6 +161,8 @@ class ShopController extends AsyncNotifier<ShopState> {
   Future<void> addDebt({
     required String customerId,
     required int amount,
+    DateTime? dueDate,
+    String note = '',
   }) async {
     if (amount <= 0) return;
     final s = state.requireValue;
@@ -170,6 +172,8 @@ class ShopController extends AsyncNotifier<ShopState> {
       amount: amount,
       paid: 0,
       createdAt: DateTime.now(),
+      dueDate: dueDate,
+      note: note,
     );
     if (_repo case CustomerDebtCrudRepository crud) {
       await crud.createDebt(debt);

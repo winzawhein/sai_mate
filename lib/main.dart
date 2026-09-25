@@ -16,6 +16,7 @@ import 'presentation/record_management_sheet.dart';
 import 'presentation/advanced_reports_page.dart';
 import 'presentation/inventory_add_sheet.dart';
 import 'presentation/theme_controller.dart';
+import 'presentation/dashboard_insights.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,9 +35,10 @@ Future<void> main() async {
 const ink = Color(0xFF18212B);
 const muted = Color(0xFF71808B);
 const cream = Colors.white;
-const green = Color(0xFF1C6D5B);
-const mint = Color(0xFFDFF3E9);
-const orange = Color(0xFFFF9E63);
+const accent = Color(0xFFA5EF55);
+const green = Color(0xFF44A21F);
+const mint = Color(0xFFE4F4DE);
+const orange = Color(0xFFFFEA4D);
 const line = Color(0xFFE9EBE5);
 const red = Color(0xFFE96C66);
 
@@ -47,8 +49,8 @@ Color appLineColor(BuildContext context) =>
     Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .65);
 Color appRaisedSurface(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-    ? const Color(0xFF151515)
-    : const Color(0xFFF7F8F8);
+    ? const Color(0xFF1F1F21)
+    : const Color(0xFFF5F6F5);
 
 enum EntryType { sale, purchase, customer, debt, product }
 
@@ -95,9 +97,11 @@ class SaiMateApp extends ConsumerWidget {
       scaffoldBackgroundColor: cream,
       colorScheme:
           ColorScheme.fromSeed(
-            seedColor: green,
+            seedColor: accent,
             brightness: Brightness.light,
           ).copyWith(
+            primary: const Color(0xFF376B18),
+            onPrimary: const Color(0xFF10120F),
             surface: Colors.white,
             surfaceContainerLowest: Colors.white,
             surfaceContainerLow: Colors.white,
@@ -111,18 +115,31 @@ class SaiMateApp extends ConsumerWidget {
         elevation: 2,
         shadowColor: const Color(0x14000000),
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: const Color(0xFFF5F6F6),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(color: line),
+          borderRadius: BorderRadius.circular(26),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(color: line),
+          borderRadius: BorderRadius.circular(26),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(26),
+          borderSide: const BorderSide(color: accent, width: 1.5),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: ink,
+          minimumSize: const Size(48, 52),
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       dialogTheme: DialogThemeData(
@@ -143,43 +160,58 @@ class SaiMateApp extends ConsumerWidget {
       scaffoldBackgroundColor: Colors.black,
       colorScheme:
           ColorScheme.fromSeed(
-            seedColor: const Color(0xFF43C6A8),
+            seedColor: accent,
             brightness: Brightness.dark,
           ).copyWith(
-            surface: Colors.black,
-            surfaceContainerLowest: Colors.black,
-            surfaceContainerLow: Colors.black,
-            surfaceContainer: Colors.black,
-            surfaceContainerHigh: Colors.black,
-            surfaceContainerHighest: Colors.black,
+            primary: accent,
+            onPrimary: const Color(0xFF10120F),
+            surface: const Color(0xFF070708),
+            surfaceContainerLowest: const Color(0xFF070708),
+            surfaceContainerLow: const Color(0xFF141416),
+            surfaceContainer: const Color(0xFF1F1F21),
+            surfaceContainerHigh: const Color(0xFF1F1F21),
+            surfaceContainerHighest: const Color(0xFF29292B),
           ),
       fontFamily: 'Noto Sans Myanmar',
       cardTheme: CardThemeData(
-        color: Colors.black,
+        color: const Color(0xFF1F1F21),
         elevation: 2,
         shadowColor: const Color(0x66000000),
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.black,
+        fillColor: const Color(0xFF070708),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(color: Color(0xFF29403A)),
+          borderRadius: BorderRadius.circular(26),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(color: Color(0xFF29403A)),
+          borderRadius: BorderRadius.circular(26),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(26),
+          borderSide: const BorderSide(color: accent, width: 1.5),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: ink,
+          minimumSize: const Size(48, 52),
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: Colors.black,
+        backgroundColor: const Color(0xFF1F1F21),
         elevation: 24,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: Colors.black,
+        backgroundColor: Color(0xFF1F1F21),
         surfaceTintColor: Colors.transparent,
         modalBarrierColor: Color(0xAA020806),
         showDragHandle: true,
@@ -229,61 +261,160 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
+  bool _busy = false;
+  bool _hidePassword = true;
+
   @override
   Widget build(BuildContext context) {
     final register = ref.watch(registerProvider);
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const CircleAvatar(
-                    radius: 34,
-                    backgroundColor: mint,
-                    child: Icon(
-                      Icons.storefront_rounded,
-                      color: green,
-                      size: 34,
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 28,
+                          backgroundColor: accent,
+                          child: Icon(
+                            Icons.storefront_rounded,
+                            color: ink,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'ဆိုင်မိတ်',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton.filledTonal(
+                          tooltip: 'Light / Dark',
+                          onPressed: () => ref
+                              .read(themeModeProvider.notifier)
+                              .setDark(
+                                Theme.of(context).brightness != Brightness.dark,
+                              ),
+                          icon: Icon(
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Icons.light_mode_outlined
+                                : Icons.dark_mode_outlined,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    register ? 'ဆိုင်အသစ် ဖွင့်မည်' : 'Sai Mate',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(height: 40),
+                    Text(
+                      register ? 'ဆိုင်အသစ် ဖွင့်မည်' : 'ပြန်လည်ကြိုဆိုပါတယ်',
+                      style: const TextStyle(
+                        fontSize: 27,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  if (register) ...[
-                    FormFieldBox(controller: name, label: 'အမည်'),
-                    FormFieldBox(controller: shop, label: 'ဆိုင်အမည်'),
+                    const SizedBox(height: 10),
+                    Text(
+                      register
+                          ? 'သင့်ဆိုင်ကို တစ်နေရာတည်းမှ စီမံပါ။'
+                          : 'သင့်ဆိုင်အကောင့်သို့ ဝင်ရောက်ပါ။',
+                      style: TextStyle(color: colors.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        color: appRaisedSurface(context),
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (register) ...[
+                            FormFieldBox(controller: name, label: 'အမည်'),
+                            FormFieldBox(controller: shop, label: 'ဆိုင်အမည်'),
+                          ],
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: email,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'အီးမေးလ်',
+                              prefixIcon: Icon(Icons.alternate_email_rounded),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          TextField(
+                            controller: password,
+                            obscureText: _hidePassword,
+                            autofillHints: [
+                              register
+                                  ? AutofillHints.newPassword
+                                  : AutofillHints.password,
+                            ],
+                            onSubmitted: (_) {
+                              if (!_busy) _submit(register);
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'စကားဝှက်',
+                              prefixIcon: const Icon(
+                                Icons.lock_outline_rounded,
+                              ),
+                              suffixIcon: IconButton(
+                                tooltip: _hidePassword
+                                    ? 'Show password'
+                                    : 'Hide password',
+                                onPressed: () => setState(
+                                  () => _hidePassword = !_hidePassword,
+                                ),
+                                icon: Icon(
+                                  _hidePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 26),
+                          FilledButton(
+                            onPressed: _busy ? null : () => _submit(register),
+                            child: _busy
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(register ? 'အကောင့်ဖွင့်မည်' : 'ဝင်မည်'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => ref.read(registerProvider.notifier).state =
+                                !register,
+                      child: Text(
+                        register ? 'အကောင့်ရှိပြီးသား' : 'အကောင့်အသစ်ဖွင့်မည်',
+                      ),
+                    ),
                   ],
-                  FormFieldBox(controller: email, label: 'အီးမေးလ်'),
-                  FormFieldBox(controller: password, label: 'စကားဝှက်'),
-                  const SizedBox(height: 18),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: green,
-                      padding: const EdgeInsets.all(14),
-                    ),
-                    onPressed: () => _submit(register),
-                    child: Text(register ? 'အကောင့်ဖွင့်မည်' : 'ဝင်မည်'),
-                  ),
-                  TextButton(
-                    onPressed: () =>
-                        ref.read(registerProvider.notifier).state = !register,
-                    child: Text(
-                      register ? 'အကောင့်ရှိပြီးသား' : 'အကောင့်အသစ်ဖွင့်မည်',
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -293,6 +424,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _submit(bool register) async {
+    if (_busy) return;
+    setState(() => _busy = true);
     try {
       if (register) {
         await Supabase.instance.client.auth.signUp(
@@ -312,6 +445,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
       }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(AppErrorMessage.from(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 }
@@ -331,8 +471,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     final tab = ref.watch(tabProvider);
     _builtTabs.add(tab);
     final colors = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final online = ref.watch(isOnlineProvider);
     ref.listen<bool>(isOnlineProvider, (previous, connected) {
       if (connected && previous == false) {
         ref.invalidate(shopProvider);
@@ -356,50 +494,46 @@ class _AppShellState extends ConsumerState<AppShell> {
               };
             }),
           ),
-          Positioned(
-            top: MediaQuery.paddingOf(context).top,
-            right: 1,
-            child: ConnectionBadge(online: online),
-          ),
         ],
       ),
-      floatingActionButton: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => showEntrySheet(context, EntryType.sale),
-          borderRadius: BorderRadius.circular(19),
-          child: Ink(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: orange,
-              borderRadius: BorderRadius.circular(19),
-              border: Border.all(color: const Color(0xFF5F6969), width: 3),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x330C1C18),
-                  blurRadius: 12,
-                  offset: Offset(0, 7),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 38),
+      floatingActionButton: Container(
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFFD447), Color(0xFFA5EF55)],
           ),
+          boxShadow: [
+            BoxShadow(color: Color(0xFF242014), offset: Offset(7, 7)),
+          ],
+        ),
+        child: FloatingActionButton(
+          tooltip: 'ရောင်းမည်',
+          onPressed: () => showEntrySheet(context, EntryType.sale),
+          backgroundColor: Colors.transparent,
+          foregroundColor: const Color(0xFF242014),
+          elevation: 0,
+          highlightElevation: 0,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.point_of_sale_rounded, size: 27),
         ),
       ),
       bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+        minimum: const EdgeInsets.fromLTRB(18, 0, 18, 10),
         child: RepaintBoundary(
           child: Container(
-            height: 66,
+            height: 72,
             decoration: BoxDecoration(
-              color: appRaisedSurface(context),
-              borderRadius: BorderRadius.circular(44),
-              boxShadow: [
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF4B514A)
+                  : const Color(0xFFE0E5DC),
+              borderRadius: BorderRadius.circular(32),
+              boxShadow: const [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: dark ? .24 : .08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
+                  color: Color(0x18000000),
+                  blurRadius: 16,
+                  offset: Offset(0, 5),
                 ),
               ],
             ),
@@ -448,7 +582,7 @@ class ConnectionBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(18),
+    borderRadius: BorderRadius.circular(26),
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 350),
       width: 48,
@@ -510,25 +644,21 @@ class AppNavItem extends ConsumerWidget {
               child: AnimatedContainer(
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
-                    : const Duration(milliseconds: 260),
-                curve: Curves.easeOutCubic,
-                width: 48,
-                height: 48,
+                    : const Duration(milliseconds: 180),
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: selected ? colors.primary : Colors.transparent,
                   shape: BoxShape.circle,
+                  color: selected
+                      ? const Color(0xFF5B8C00)
+                      : Colors.transparent,
                 ),
-                child: AnimatedScale(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOutBack,
-                  scale: selected ? 1 : .9,
-                  child: Icon(
-                    selected ? activeIcon : icon,
-                    color: selected
-                        ? colors.onPrimary
-                        : colors.onSurfaceVariant,
-                    size: 24,
-                  ),
+                child: Icon(
+                  selected ? activeIcon : icon,
+                  color: selected
+                      ? Colors.white
+                      : colors.onSurface.withValues(alpha: .75),
+                  size: 25,
                 ),
               ),
             ),
@@ -543,6 +673,8 @@ class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(transactionHistoryProvider);
+    final records = history.valueOrNull ?? const <TransactionRecord>[];
     final products = ref.watch(productsProvider);
     final customers = ref.watch(customersProvider);
     final shop = ref.watch(shopProvider).valueOrNull;
@@ -554,6 +686,7 @@ class DashboardPage extends ConsumerWidget {
             child: DashboardHeader(
               shopName: shop?.shopName ?? 'Sai Mate',
               ownerName: shop?.ownerName ?? '',
+              online: ref.watch(isOnlineProvider),
               onAccountTap: () => showAccountSheet(
                 context,
                 ref,
@@ -566,28 +699,61 @@ class DashboardPage extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 98),
             sliver: SliverList.list(
               children: [
+                TextField(
+                  onSubmitted: (value) {
+                    ref.read(searchProvider.notifier).state = value;
+                    ref.read(tabProvider.notifier).state = 1;
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'ပစ္စည်းရှာရန်...',
+                    prefixIcon: Icon(Icons.search_rounded),
+                    suffixIcon: Icon(Icons.arrow_forward_rounded),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const SectionTitle('အရောင်း သုံးသပ်ချက်'),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
-                      flex: 6,
-                      child: SummaryCard(
-                        debt: true,
-                        value: shop?.outstandingDebt ?? 0,
-                        count: customers.where((c) => c.debt > 0).length,
+                      flex: 1,
+                      child: DashboardMetric(
+                        title: 'လတ်တလော အရောင်း',
+                        subtitle: 'နောက်ဆုံး ၁၀၀ ခုအထိ',
+                        value: records
+                            .where((r) => r.sale)
+                            .fold<int>(0, (sum, r) => sum + r.total),
+                        color: accent,
+                        icon: Icons.sell_outlined,
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      flex: 4,
-                      child: SummaryCard(
-                        debt: false,
-                        value: shop?.inventoryValue ?? 0,
-                        count: products.length,
+                      flex: 1,
+                      child: DashboardMetric(
+                        title: 'ရရန်ရှိငွေ',
+                        subtitle: 'စုစုပေါင်း အကြွေးကျန်',
+                        value: shop?.outstandingDebt ?? 0,
+                        color: orange,
+                        icon: Icons.hourglass_bottom_rounded,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 26),
+                history.when(
+                  data: (data) => DashboardInsights(records: data),
+                  loading: () => const SizedBox(
+                    height: 220,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (_, _) => TextButton.icon(
+                    onPressed: () => ref.invalidate(transactionHistoryProvider),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('အရောင်းစာရင်း ပြန်ဖွင့်ရန်'),
+                  ),
+                ),
+                const SizedBox(height: 26),
                 const SectionTitle('အမြန်လုပ်ဆောင်ရန်'),
                 const SizedBox(height: 8),
                 Row(
@@ -646,62 +812,66 @@ class DashboardHeader extends StatelessWidget {
     super.key,
     required this.shopName,
     required this.ownerName,
+    required this.online,
     required this.onAccountTap,
   });
 
   final String shopName;
   final String ownerName;
+  final bool online;
   final VoidCallback onAccountTap;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(22, 24, 18, 20),
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [green, Color(0xFF255F54)],
-      ),
-      borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
-    ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
     child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        IconButton.filledTonal(
+          onPressed: onAccountTap,
+          tooltip: 'အကောင့်',
+          style: IconButton.styleFrom(
+            backgroundColor: appRaisedSurface(context),
+            minimumSize: const Size(48, 48),
+          ),
+          icon: const Icon(Icons.menu_rounded),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 ownerName.isEmpty ? 'မင်္ဂလာပါ' : 'မင်္ဂလာပါ၊ $ownerName',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 6),
               Text(
                 shopName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 27,
+                  fontSize: 23,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 12),
         Tooltip(
-          message: 'အကောင့်နှင့် ထွက်ရန်',
-          child: Semantics(
-            button: true,
-            label: 'အကောင့်နှင့် ထွက်ရန်',
-            child: InkWell(
-              onTap: onAccountTap,
-              borderRadius: BorderRadius.circular(20),
-              child: const SaiMateLogo(),
+          message: online ? 'Online' : 'Offline',
+          child: CircleAvatar(
+            radius: 24,
+            backgroundColor: appRaisedSurface(context),
+            child: Icon(
+              online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+              color: online
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
             ),
           ),
         ),
@@ -728,7 +898,7 @@ Future<void> showAccountSheet(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.storefront_rounded, color: green, size: 42),
+          const Icon(Icons.storefront_rounded, color: accent, size: 42),
           const SizedBox(height: 10),
           Text(
             shopName,
@@ -756,7 +926,7 @@ Future<void> showAccountSheet(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                 secondary: Icon(
                   isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                  color: green,
+                  color: accent,
                 ),
                 title: const Text('အမှောင်ပုံစံ'),
                 subtitle: Text(isDark ? 'Dark mode' : 'Light mode'),
@@ -915,68 +1085,56 @@ class SummaryCard extends StatelessWidget {
   final int value, count;
   @override
   Widget build(BuildContext context) => Container(
-    height: 150,
-    padding: const EdgeInsets.all(16),
+    constraints: const BoxConstraints(minHeight: 154),
+    padding: const EdgeInsets.all(17),
     decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: Theme.of(context).brightness == Brightness.dark
-            ? const [Color(0xA63B6C61), Color(0x59314D47)]
-            : (debt
-                  ? const [Color(0xE8FFFFFF), Color(0x91BCEADA)]
-                  : const [Color(0xE8FFFFFF), Color(0x99FFE1C8)]),
-      ),
-      border: Border.all(color: Colors.white.withValues(alpha: .7)),
-      borderRadius: BorderRadius.circular(18),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x24124C40),
-          blurRadius: 24,
-          offset: Offset(0, 10),
-        ),
-      ],
+      color: debt ? accent : orange,
+      borderRadius: BorderRadius.circular(24),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!debt) const Text('📦', style: TextStyle(fontSize: 23)),
-        if (!debt) const SizedBox(height: 7),
-        Text(
-          debt ? 'ရရန်ရှိငွေ' : 'ပစ္စည်းတန်ဖိုး',
-          style: const TextStyle(
-            color: green,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          '${NumberFormat('#,##0').format(value)} Ks',
-          maxLines: 1,
-          style: TextStyle(
-            color: debt ? ink : const Color(0xFFA65A2A),
-            fontSize: debt ? 20 : 22,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          debt ? 'ဖောက်သည် $count ယောက်' : 'ကုန်ပစ္စည်း $count ခု',
-          style: const TextStyle(color: muted, fontSize: 10),
-        ),
-        if (debt)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text(
-              'Supabase live data',
-              style: TextStyle(
-                color: green,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                debt ? 'ရရန်ရှိငွေ' : 'ပစ္စည်းတန်ဖိုး',
+                style: const TextStyle(
+                  color: ink,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: ink,
+              child: Icon(
+                debt ? Icons.payments_outlined : Icons.inventory_2_outlined,
+                color: debt ? accent : orange,
+                size: 17,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          debt ? 'ဖောက်သည် $count ယောက်' : 'ကုန်ပစ္စည်း $count ခု',
+          style: const TextStyle(color: Color(0xFF34402C), fontSize: 11),
+        ),
+        const SizedBox(height: 24),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            '${NumberFormat('#,##0').format(value)} Ks',
+            style: const TextStyle(
+              color: ink,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
           ),
+        ),
       ],
     ),
   );
@@ -991,9 +1149,11 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      Expanded(
+        child: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
       ),
       if (action != null)
         InkWell(
@@ -1002,8 +1162,8 @@ class SectionTitle extends StatelessWidget {
             padding: const EdgeInsets.all(3),
             child: Text(
               action!,
-              style: const TextStyle(
-                color: green,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -1030,18 +1190,15 @@ class QuickAction extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: appRaisedSurface(context),
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: .045),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(19),
           ),
           child: Column(
             children: [
-              Icon(icon, color: green, size: 20),
+              Icon(
+                icon,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
               const SizedBox(height: 5),
               Text(label, style: const TextStyle(fontSize: 10)),
             ],
@@ -1059,19 +1216,12 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) => RepaintBoundary(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 5, right: 4),
       decoration: BoxDecoration(
         color: appRaisedSurface(context),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: Theme.of(context).brightness == Brightness.dark
-                  ? .24
-                  : .06,
-            ),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(color: Color(0x55000000), offset: Offset(4, 5)),
         ],
       ),
       child: child,
@@ -1091,13 +1241,6 @@ class ProductRow extends StatelessWidget {
       onLongPress: () => showProductManagement(context, product),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: divider
-            ? BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: appLineColor(context)),
-                ),
-              )
-            : null,
         child: Row(
           children: [
             ProductThumbnail(product: product),
@@ -1108,6 +1251,8 @@ class ProductRow extends StatelessWidget {
                 children: [
                   Text(
                     product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -1115,20 +1260,21 @@ class ProductRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${product.sku} · ${product.stock} ခု ကျန်',
+                    '${product.sku.isEmpty ? '' : '${product.sku} · '}${product.stock} ခု ကျန်',
                     style: const TextStyle(color: muted, fontSize: 10),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 12),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
                 color: critical
                     ? const Color(0xFFFFE4DF)
                     : low
                     ? const Color(0xFFFFF0CF)
-                    : const Color(0xFFE1F3E9),
+                    : green.withValues(alpha: .16),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -1193,20 +1339,20 @@ class ProductThumbnail extends ConsumerWidget {
       clipBehavior: Clip.none,
       children: [
         Container(
-          width: 46,
-          height: 46,
+          width: 54,
+          height: 54,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: const Color(0xFFF9E9DD),
-            borderRadius: BorderRadius.circular(14),
+            color: const Color(0xFFFFF0E8),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: product.imageUrl == null
               ? const ProductImageFallback()
               : Image.network(
                   product.imageUrl!,
                   fit: BoxFit.cover,
-                  cacheWidth: 96,
-                  cacheHeight: 96,
+                  cacheWidth: 128,
+                  cacheHeight: 128,
                   filterQuality: FilterQuality.low,
                   errorBuilder: (context, error, stackTrace) =>
                       const ProductImageFallback(),
@@ -1219,15 +1365,11 @@ class ProductThumbnail extends ConsumerWidget {
             width: 17,
             height: 17,
             decoration: BoxDecoration(
-              color: green,
+              color: accent,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 1.5),
             ),
-            child: const Icon(
-              Icons.camera_alt_rounded,
-              color: Colors.white,
-              size: 9,
-            ),
+            child: const Icon(Icons.camera_alt_rounded, color: ink, size: 9),
           ),
         ),
       ],
@@ -1240,13 +1382,7 @@ class ProductImageFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFFFFF0E5), Color(0xFFF7D9C4)],
-      ),
-    ),
+    decoration: BoxDecoration(color: Color(0xFFE4F0DB)),
     child: Center(
       child: Icon(
         Icons.inventory_2_rounded,
@@ -1370,12 +1506,12 @@ class ImageSourceOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    borderRadius: BorderRadius.circular(18),
+    borderRadius: BorderRadius.circular(26),
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .1),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(color: color.withValues(alpha: .2)),
       ),
       child: Column(
@@ -1429,7 +1565,7 @@ class ProductImagePickerField extends StatelessWidget {
               height: 70,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: const Color(0xFFF9E9DD),
+                color: const Color(0xFFE8F6E3),
                 borderRadius: BorderRadius.circular(13),
               ),
               child: selection == null
@@ -1592,7 +1728,7 @@ class ListPage extends ConsumerWidget {
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(18, 25, 18, 10),
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
           sliver: SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1604,12 +1740,22 @@ class ListPage extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 TextField(
                   onChanged: (v) => ref.read(searchProvider.notifier).state = v,
                   decoration: InputDecoration(
                     hintText: hint,
-                    prefixIcon: const Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    filled: true,
+                    fillColor: appRaisedSurface(context),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: accent, width: 1.2),
+                    ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -1620,22 +1766,22 @@ class ListPage extends ConsumerWidget {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 110),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 110),
           sliver: SliverList.builder(
             itemCount: itemCount,
             itemBuilder: (context, index) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 9),
               child: RepaintBoundary(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: appRaisedSurface(context),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: .035),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                        blurRadius: 0,
+                        offset: const Offset(4, 5),
                       ),
                     ],
                   ),
@@ -1674,7 +1820,7 @@ class ReportsPage extends ConsumerWidget {
                 color: Theme.of(context).brightness == Brightness.dark
                     ? const Color(0xFF15362F)
                     : mint,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(26),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1695,7 +1841,7 @@ class ReportsPage extends ConsumerWidget {
                   const Text(
                     'Supabase live transaction data',
                     style: TextStyle(
-                      color: green,
+                      color: accent,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1750,6 +1896,7 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
       third = TextEditingController(),
       fourth = TextEditingController(),
       fifth = TextEditingController();
+  DateTime? debtDueDate;
   final productImageProvider =
       StateProvider.autoDispose<ProductImageSelection?>((ref) => null);
   @override
@@ -1843,12 +1990,37 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
                       : 'အရေအတွက်',
                   numeric: true,
                 ),
+              if (widget.type == EntryType.debt) ...[
+                FormFieldBox(controller: second, label: 'မှတ်ချက်'),
+                const SizedBox(height: 10),
+                Material(
+                  color: appRaisedSurface(context),
+                  borderRadius: BorderRadius.circular(16),
+                  child: ListTile(
+                    leading: const Icon(Icons.event_rounded, color: accent),
+                    title: const Text('ပေးချေရမည့်ရက်'),
+                    subtitle: Text(
+                      debtDueDate == null
+                          ? 'သတ်မှတ်ရန် နှိပ်ပါ'
+                          : DateFormat('dd MMM yyyy').format(debtDueDate!),
+                    ),
+                    trailing: debtDueDate == null
+                        ? const Icon(Icons.chevron_right_rounded)
+                        : IconButton(
+                            tooltip: 'ရက်ဖယ်ရှားရန်',
+                            onPressed: () => setState(() => debtDueDate = null),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                    onTap: _pickDebtDueDate,
+                  ),
+                ),
+              ],
               const SizedBox(height: 17),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: green,
+                    backgroundColor: accent,
                     padding: const EdgeInsets.all(13),
                   ),
                   onPressed: _save,
@@ -1914,7 +2086,12 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
         case EntryType.purchase:
           await c.purchase(productId: selectedProduct!, quantity: qty);
         case EntryType.debt:
-          await c.addDebt(customerId: selectedCustomer!, amount: qty);
+          await c.addDebt(
+            customerId: selectedCustomer!,
+            amount: qty,
+            dueDate: debtDueDate,
+            note: second.text.trim(),
+          );
       }
       succeeded = true;
     } catch (error) {
@@ -1958,6 +2135,17 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
         ),
       );
     }
+  }
+
+  Future<void> _pickDebtDueDate() async {
+    final today = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: debtDueDate ?? today.add(const Duration(days: 7)),
+      firstDate: today,
+      lastDate: DateTime(today.year + 5),
+    );
+    if (selected != null && mounted) setState(() => debtDueDate = selected);
   }
 }
 

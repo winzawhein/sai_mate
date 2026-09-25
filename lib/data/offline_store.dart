@@ -54,6 +54,8 @@ class OfflineStore {
               'amount': d.amount,
               'paid': d.paid,
               'created_at': d.createdAt.toIso8601String(),
+              'due_date': d.dueDate?.toIso8601String(),
+              'note': d.note,
             },
           )
           .toList(),

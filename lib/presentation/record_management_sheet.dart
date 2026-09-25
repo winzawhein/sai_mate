@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/shop_models.dart';
 import 'shop_controller.dart';
 
-const _green = Color(0xFF1C6D5B);
+const _green = Color(0xFFA5EF55);
 
 Future<void> showProductManagement(BuildContext context, Product product) =>
     showModalBottomSheet(

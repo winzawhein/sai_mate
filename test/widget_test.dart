@@ -17,9 +17,26 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('အရောင်း သုံးသပ်ချက်'), findsOneWidget);
+    expect(find.text('ငွေပေးချေမှု အမျိုးအစား'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('အမြန်လုပ်ဆောင်ရန်'),
+      200,
+      scrollable: find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          )
+          .first,
+    );
     expect(find.text('အမြန်လုပ်ဆောင်ရန်'), findsOneWidget);
-    expect(find.text('ပစ္စည်းလက်ကျန်'), findsOneWidget);
+
     expect(find.text('ရောင်းမည်'), findsOneWidget);
-    expect(find.byIcon(Icons.home), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.inventory_2_outlined).last);
+    await tester.pumpAndSettle();
+    expect(find.text('ပစ္စည်းလက်ကျန်'), findsOneWidget);
+    expect(find.byIcon(Icons.home_outlined), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

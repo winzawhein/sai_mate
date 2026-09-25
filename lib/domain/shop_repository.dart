@@ -73,3 +73,9 @@ abstract interface class HistoryRepository {
     required int quantity,
   });
 }
+
+abstract interface class ExpenseRepository {
+  Future<List<Expense>> loadExpenses();
+  Future<void> createExpense(Expense expense);
+  Future<void> deleteExpense(String expenseId);
+}
