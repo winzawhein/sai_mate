@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../domain/shop_models.dart';
 import '../domain/shop_repository.dart';
 import 'shop_controller.dart';
+import 'form_chrome.dart';
 
 const _green = Color(0xFFA5EF55), _orange = Color(0xFFFFEA4D);
 
@@ -334,6 +335,27 @@ class TransactionHistory extends ConsumerWidget {
                 width: double.infinity,
                 child: SegmentedButton<TransactionFilter>(
                   showSelectedIcon: false,
+                  style: ButtonStyle(
+                    side: const WidgetStatePropertyAll(BorderSide.none),
+                    padding: const WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    shape: WidgetStatePropertyAll(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    backgroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.selected)
+                          ? _green
+                          : Theme.of(context).colorScheme.surfaceContainerHigh,
+                    ),
+                    foregroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.selected)
+                          ? Colors.black
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                   segments: const [
                     ButtonSegment(
                       value: TransactionFilter.all,
@@ -513,9 +535,9 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'အသုံးစရိတ်အသစ်',
-          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+        const FormHeading(
+          title: 'အသုံးစရိတ်အသစ်',
+          icon: Icons.receipt_long_outlined,
         ),
         const SizedBox(height: 16),
         TextField(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/shop_models.dart';
 import 'shop_controller.dart';
+import 'form_chrome.dart';
 
 const _green = Color(0xFFA5EF55);
 
@@ -154,10 +155,7 @@ class ManagementForm extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
-            ),
+            FormHeading(title: title, icon: Icons.edit_outlined),
             const SizedBox(height: 10),
             ...fields,
             const SizedBox(height: 16),

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../domain/shop_models.dart';
 import 'shop_controller.dart';
+import 'form_chrome.dart';
 
 const _green = Color(0xFFA5EF55);
 
@@ -92,19 +93,10 @@ class PurchaseCartSheet extends ConsumerWidget {
           child: Column(
             children: [
               const Padding(
-                padding: EdgeInsets.fromLTRB(20, 22, 20, 12),
-                child: Row(
-                  children: [
-                    Icon(Icons.inventory_rounded, color: _green),
-                    SizedBox(width: 10),
-                    Text(
-                      'အဝယ် Cart',
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
+                padding: EdgeInsets.fromLTRB(20, 20, 12, 0),
+                child: FormHeading(
+                  title: 'အဝယ် Cart',
+                  icon: Icons.inventory_rounded,
                 ),
               ),
               Padding(
@@ -150,79 +142,88 @@ class PurchaseCartSheet extends ConsumerWidget {
                             PurchaseLineTile(line: cart[index]),
                       ),
               ),
-              Container(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: ref.watch(selectedSupplierProvider),
-                            decoration: const InputDecoration(
-                              labelText: 'ပစ္စည်းပေးသွင်းသူ',
-                            ),
-                            items: (shop?.suppliers ?? const <Supplier>[])
-                                .map(
-                                  (s) => DropdownMenuItem(
-                                    value: s.id,
-                                    child: Text(s.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (id) =>
-                                ref
-                                        .read(selectedSupplierProvider.notifier)
-                                        .state =
-                                    id,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton.filledTonal(
-                          tooltip: 'ပေးသွင်းသူအသစ် ထည့်ရန်',
-                          onPressed: () => _addSupplier(context, ref),
-                          icon: const Icon(Icons.person_add_alt_1_rounded),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'စုစုပေါင်း',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        Text(
-                          '${NumberFormat('#,##0').format(total)} Ks',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _green,
-                          padding: const EdgeInsets.all(15),
-                        ),
-                        onPressed: cart.isEmpty
-                            ? null
-                            : () => _checkout(context, ref, cart),
-                        child: const Text('အဝယ်အတည်ပြုမည်'),
+              Flexible(
+                flex: 2,
+                child: SingleChildScrollView(
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(24),
                       ),
                     ),
-                  ],
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: ref.watch(
+                                  selectedSupplierProvider,
+                                ),
+                                decoration: const InputDecoration(
+                                  labelText: 'ပစ္စည်းပေးသွင်းသူ',
+                                ),
+                                items: (shop?.suppliers ?? const <Supplier>[])
+                                    .map(
+                                      (s) => DropdownMenuItem(
+                                        value: s.id,
+                                        child: Text(s.name),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (id) =>
+                                    ref
+                                            .read(
+                                              selectedSupplierProvider.notifier,
+                                            )
+                                            .state =
+                                        id,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              tooltip: 'ပေးသွင်းသူအသစ် ထည့်ရန်',
+                              onPressed: () => _addSupplier(context, ref),
+                              icon: const Icon(Icons.person_add_alt_1_rounded),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'စုစုပေါင်း',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            Text(
+                              '${NumberFormat('#,##0').format(total)} Ks',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _green,
+                              padding: const EdgeInsets.all(15),
+                            ),
+                            onPressed: cart.isEmpty
+                                ? null
+                                : () => _checkout(context, ref, cart),
+                            child: const Text('အဝယ်အတည်ပြုမည်'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],

@@ -16,6 +16,7 @@ import 'presentation/record_management_sheet.dart';
 import 'presentation/advanced_reports_page.dart';
 import 'presentation/inventory_add_sheet.dart';
 import 'presentation/theme_controller.dart';
+import 'presentation/form_chrome.dart';
 import 'presentation/dashboard_insights.dart';
 
 Future<void> main() async {
@@ -106,30 +107,36 @@ class SaiMateApp extends ConsumerWidget {
             surfaceContainerLowest: Colors.white,
             surfaceContainerLow: Colors.white,
             surfaceContainer: Colors.white,
-            surfaceContainerHigh: Colors.white,
+            surfaceContainerHigh: const Color(0xFFF1F2EF),
             surfaceContainerHighest: Colors.white,
           ),
+      segmentedButtonTheme: formSegments(false),
       fontFamily: 'Noto Sans Myanmar',
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 2,
         shadowColor: const Color(0x14000000),
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         fillColor: const Color(0xFFF5F6F6),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: accent, width: 1.5),
         ),
       ),
@@ -138,7 +145,9 @@ class SaiMateApp extends ConsumerWidget {
           backgroundColor: accent,
           foregroundColor: ink,
           minimumSize: const Size(48, 52),
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
@@ -172,27 +181,33 @@ class SaiMateApp extends ConsumerWidget {
             surfaceContainerHigh: const Color(0xFF1F1F21),
             surfaceContainerHighest: const Color(0xFF29292B),
           ),
+      segmentedButtonTheme: formSegments(true),
       fontFamily: 'Noto Sans Myanmar',
       cardTheme: CardThemeData(
         color: const Color(0xFF1F1F21),
         elevation: 2,
         shadowColor: const Color(0x66000000),
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         fillColor: const Color(0xFF070708),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: accent, width: 1.5),
         ),
       ),
@@ -201,7 +216,9 @@ class SaiMateApp extends ConsumerWidget {
           backgroundColor: accent,
           foregroundColor: ink,
           minimumSize: const Size(48, 52),
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
@@ -526,9 +543,9 @@ class _AppShellState extends ConsumerState<AppShell> {
             height: 72,
             decoration: BoxDecoration(
               color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF4B514A)
-                  : const Color(0xFFE0E5DC),
-              borderRadius: BorderRadius.circular(32),
+                  ? const Color(0xFF242426)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(40),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x18000000),
@@ -626,7 +643,7 @@ class AppNavItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = current == index;
-    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: Semantics(
         label: label,
@@ -645,19 +662,19 @@ class AppNavItem extends ConsumerWidget {
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
                     : const Duration(milliseconds: 180),
-                width: 46,
-                height: 46,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: selected
-                      ? const Color(0xFF5B8C00)
+                      ? (dark ? accent : Colors.black)
                       : Colors.transparent,
                 ),
                 child: Icon(
                   selected ? activeIcon : icon,
                   color: selected
-                      ? Colors.white
-                      : colors.onSurface.withValues(alpha: .75),
+                      ? (dark ? ink : Colors.white)
+                      : const Color(0xFF96999B),
                   size: 25,
                 ),
               ),
@@ -891,7 +908,6 @@ Future<void> showAccountSheet(
     context: context,
     showDragHandle: true,
     useSafeArea: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
     builder: (sheetContext) => Padding(
       padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
       child: Column(
@@ -1935,12 +1951,13 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                ),
+              FormHeading(
+                title: title,
+                icon: widget.type == EntryType.debt
+                    ? Icons.receipt_long_rounded
+                    : widget.type == EntryType.customer
+                    ? Icons.person_add_alt_1_rounded
+                    : Icons.inventory_2_outlined,
               ),
               if (productFlow)
                 SelectField(
