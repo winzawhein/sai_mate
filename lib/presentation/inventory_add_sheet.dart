@@ -1,3 +1,5 @@
+import 'press_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -88,7 +90,7 @@ class InventoryAddSheet extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: withLightImpact(() => Navigator.pop(context)),
                     icon: const Icon(Icons.close_rounded),
                   ),
                 ],
@@ -105,12 +107,12 @@ class InventoryAddSheet extends ConsumerWidget {
                 child: Ink(
                   decoration: const BoxDecoration(color: Color(0xFFA5EF55)),
                   child: InkWell(
-                    onTap: () {
+                    onTap: withLightImpact(() {
                       Navigator.pop(
                         context,
                         const InventoryAddChoice.newProduct(),
                       );
-                    },
+                    }),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: 16,
@@ -208,9 +210,9 @@ class ExistingProductTile extends StatelessWidget {
     color: Theme.of(context).colorScheme.surfaceContainerHigh,
     borderRadius: BorderRadius.circular(16),
     child: ListTile(
-      onTap: () {
+      onTap: withLightImpact(() {
         Navigator.pop(context, InventoryAddChoice.existing(product));
-      },
+      }),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       leading: Container(
         width: 44,
@@ -293,7 +295,7 @@ class _ExistingStockSheetState extends ConsumerState<ExistingStockSheet> {
               backgroundColor: _green,
               padding: const EdgeInsets.all(15),
             ),
-            onPressed: _save,
+            onPressed: withLightImpact(_save),
             child: const Text('လက်ကျန်ထည့်မည်'),
           ),
         ),

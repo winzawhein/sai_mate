@@ -1,3 +1,5 @@
+import 'press_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -163,8 +165,9 @@ class ReportOverview extends ConsumerWidget {
             ButtonSegment(value: ReportPeriod.year, label: Text('ဒီနှစ်')),
           ],
           selected: {period},
-          onSelectionChanged: (v) =>
-              ref.read(reportPeriodProvider.notifier).state = v.first,
+          onSelectionChanged: withSelectionImpact(
+            (v) => ref.read(reportPeriodProvider.notifier).state = v.first,
+          ),
         ),
         const SizedBox(height: 16),
         Row(
@@ -216,7 +219,7 @@ class ReportOverview extends ConsumerWidget {
         SizedBox(
           width: double.infinity,
           child: FilledButton.tonalIcon(
-            onPressed: () => _showExpenseSheet(context, ref),
+            onPressed: withLightImpact(() => _showExpenseSheet(context, ref)),
             icon: const Icon(Icons.receipt_long_rounded),
             label: const Text('အသုံးစရိတ် ထည့်မည်'),
           ),
@@ -371,9 +374,11 @@ class TransactionHistory extends ConsumerWidget {
                     ),
                   ],
                   selected: {filter},
-                  onSelectionChanged: (values) =>
-                      ref.read(transactionFilterProvider.notifier).state =
-                          values.first,
+                  onSelectionChanged: withSelectionImpact(
+                    (values) =>
+                        ref.read(transactionFilterProvider.notifier).state =
+                            values.first,
+                  ),
                 ),
               ),
             ],
@@ -440,7 +445,9 @@ class TransactionTile extends ConsumerWidget {
                   ),
                   trailing: record.sale
                       ? TextButton(
-                          onPressed: () => _return(context, ref, line),
+                          onPressed: withLightImpact(
+                            () => _return(context, ref, line),
+                          ),
                           child: const Text('ပြန်အပ်'),
                         )
                       : null,
@@ -582,7 +589,10 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         const SizedBox(height: 16),
-        FilledButton(onPressed: _submit, child: const Text('သိမ်းမည်')),
+        FilledButton(
+          onPressed: withLightImpact(_submit),
+          child: const Text('သိမ်းမည်'),
+        ),
       ],
     ),
   );

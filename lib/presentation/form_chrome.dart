@@ -1,3 +1,5 @@
+import 'press_feedback.dart';
+
 import 'package:flutter/material.dart';
 
 class FormHeading extends StatelessWidget {
@@ -27,7 +29,7 @@ class FormHeading extends StatelessWidget {
         ),
         IconButton(
           tooltip: 'ပိတ်မည်',
-          onPressed: () => Navigator.maybePop(context),
+          onPressed: withLightImpact(() => Navigator.maybePop(context)),
           icon: const Icon(Icons.close_rounded),
         ),
       ],

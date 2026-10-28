@@ -1,3 +1,6 @@
+import 'presentation/subscription_page.dart';
+import 'presentation/press_feedback.dart';
+
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 
@@ -234,6 +237,23 @@ class SaiMateApp extends ConsumerWidget {
         showDragHandle: true,
       ),
     ),
+    builder: (context, child) {
+      final dark = Theme.of(context).brightness == Brightness.dark;
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+          statusBarColor: Theme.of(context).scaffoldBackgroundColor,
+          statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+          statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+          systemNavigationBarColor: Theme.of(context).scaffoldBackgroundColor,
+          systemNavigationBarIconBrightness: dark
+              ? Brightness.light
+              : Brightness.dark,
+          systemStatusBarContrastEnforced: false,
+          systemNavigationBarContrastEnforced: false,
+        ),
+        child: child!,
+      );
+    },
     home: const AuthGate(),
   );
 }
@@ -319,11 +339,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                         IconButton.filledTonal(
                           tooltip: 'Light / Dark',
-                          onPressed: () => ref
-                              .read(themeModeProvider.notifier)
-                              .setDark(
-                                Theme.of(context).brightness != Brightness.dark,
-                              ),
+                          onPressed: withLightImpact(
+                            () => ref
+                                .read(themeModeProvider.notifier)
+                                .setDark(
+                                  Theme.of(context).brightness !=
+                                      Brightness.dark,
+                                ),
+                          ),
                           icon: Icon(
                             Theme.of(context).brightness == Brightness.dark
                                 ? Icons.light_mode_outlined
@@ -393,8 +416,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 tooltip: _hidePassword
                                     ? 'Show password'
                                     : 'Hide password',
-                                onPressed: () => setState(
-                                  () => _hidePassword = !_hidePassword,
+                                onPressed: withLightImpact(
+                                  () => setState(
+                                    () => _hidePassword = !_hidePassword,
+                                  ),
                                 ),
                                 icon: Icon(
                                   _hidePassword
@@ -406,7 +431,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                           const SizedBox(height: 26),
                           FilledButton(
-                            onPressed: _busy ? null : () => _submit(register),
+                            onPressed: withLightImpact(
+                              _busy ? null : () => _submit(register),
+                            ),
                             child: _busy
                                 ? const SizedBox(
                                     width: 20,
@@ -422,10 +449,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: 18),
                     TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => ref.read(registerProvider.notifier).state =
-                                !register,
+                      onPressed: withLightImpact(
+                        _busy
+                            ? null
+                            : () => ref.read(registerProvider.notifier).state =
+                                  !register,
+                      ),
                       child: Text(
                         register ? 'အကောင့်ရှိပြီးသား' : 'အကောင့်အသစ်ဖွင့်မည်',
                       ),
@@ -527,7 +556,9 @@ class _AppShellState extends ConsumerState<AppShell> {
         ),
         child: FloatingActionButton(
           tooltip: 'ရောင်းမည်',
-          onPressed: () => showEntrySheet(context, EntryType.sale),
+          onPressed: withLightImpact(
+            () => showEntrySheet(context, EntryType.sale),
+          ),
           backgroundColor: Colors.transparent,
           foregroundColor: const Color(0xFF242014),
           elevation: 0,
@@ -650,10 +681,10 @@ class AppNavItem extends ConsumerWidget {
         button: true,
         selected: selected,
         child: InkResponse(
-          onTap: () {
+          onTap: withLightImpact(() {
             ref.read(searchProvider.notifier).state = '';
             ref.read(tabProvider.notifier).state = index;
-          },
+          }),
           radius: 32,
           child: Tooltip(
             message: label,
@@ -765,7 +796,9 @@ class DashboardPage extends ConsumerWidget {
                     child: Center(child: CircularProgressIndicator()),
                   ),
                   error: (_, _) => TextButton.icon(
-                    onPressed: () => ref.invalidate(transactionHistoryProvider),
+                    onPressed: withLightImpact(
+                      () => ref.invalidate(transactionHistoryProvider),
+                    ),
                     icon: const Icon(Icons.refresh),
                     label: const Text('အရောင်းစာရင်း ပြန်ဖွင့်ရန်'),
                   ),
@@ -789,7 +822,9 @@ class DashboardPage extends ConsumerWidget {
                 SectionTitle(
                   'ပစ္စည်းလက်ကျန်',
                   action: 'အားလုံးကြည့်ရန် ›',
-                  onTap: () => ref.read(tabProvider.notifier).state = 1,
+                  onTap: withLightImpact(
+                    () => ref.read(tabProvider.notifier).state = 1,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 AppCard(
@@ -804,7 +839,9 @@ class DashboardPage extends ConsumerWidget {
                 SectionTitle(
                   'မကြာသေးခင် အကြွေးများ',
                   action: 'စာရင်း ›',
-                  onTap: () => ref.read(tabProvider.notifier).state = 2,
+                  onTap: withLightImpact(
+                    () => ref.read(tabProvider.notifier).state = 2,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 AppCard(
@@ -844,7 +881,7 @@ class DashboardHeader extends StatelessWidget {
     child: Row(
       children: [
         IconButton.filledTonal(
-          onPressed: onAccountTap,
+          onPressed: withLightImpact(onAccountTap),
           tooltip: 'အကောင့်',
           style: IconButton.styleFrom(
             backgroundColor: appRaisedSurface(context),
@@ -908,85 +945,112 @@ Future<void> showAccountSheet(
     context: context,
     showDragHandle: true,
     useSafeArea: true,
-    builder: (sheetContext) => Padding(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Icon(Icons.storefront_rounded, color: accent, size: 42),
-          const SizedBox(height: 10),
-          Text(
-            shopName,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          ),
-          if (ownerName.isNotEmpty) ...[
-            const SizedBox(height: 3),
-            Text(ownerName, textAlign: TextAlign.center),
-          ],
-          if (user?.email case final email?) ...[
-            const SizedBox(height: 3),
+    isScrollControlled: true,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * .9,
+    ),
+    builder: (sheetContext) => SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Icon(Icons.storefront_rounded, color: accent, size: 42),
+            const SizedBox(height: 10),
             Text(
-              email,
+              shopName,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: muted, fontSize: 13),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            ),
+            if (ownerName.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(ownerName, textAlign: TextAlign.center),
+            ],
+            if (user?.email case final email?) ...[
+              const SizedBox(height: 3),
+              Text(
+                email,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: muted, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.workspace_premium_rounded),
+              title: const Text('Subscription'),
+              subtitle: const Text('အစီအစဉ် · ငွေလွှဲပြေစာ · သက်တမ်း'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: withLightImpact(() {
+                Navigator.pop(sheetContext);
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SubscriptionPage(),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 12),
+            Consumer(
+              builder: (context, ref, child) {
+                ref.watch(themeModeProvider);
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                return SwitchListTile.adaptive(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  secondary: Icon(
+                    isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                    color: accent,
+                  ),
+                  title: const Text('အမှောင်ပုံစံ'),
+                  subtitle: Text(isDark ? 'Dark mode' : 'Light mode'),
+                  value: isDark,
+                  onChanged: withSelectionImpact(
+                    ref.read(themeModeProvider.notifier).setDark,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: red,
+                side: const BorderSide(color: red),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: withLightImpact(() async {
+                final confirmed = await showDialog<bool>(
+                  context: sheetContext,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('အကောင့်မှ ထွက်မည်လား'),
+                    content: const Text(
+                      'နောက်တစ်ကြိမ် အသုံးပြုရန် အီးမေးလ်နှင့် စကားဝှက်ဖြင့် ပြန်ဝင်ရပါမည်။',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: withLightImpact(
+                          () => Navigator.pop(dialogContext, false),
+                        ),
+                        child: const Text('မထွက်သေးပါ'),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: red),
+                        onPressed: withLightImpact(
+                          () => Navigator.pop(dialogContext, true),
+                        ),
+                        child: const Text('ထွက်မည်'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true && sheetContext.mounted) {
+                  Navigator.pop(sheetContext, true);
+                }
+              }),
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('အကောင့်မှ ထွက်မည်'),
             ),
           ],
-          const SizedBox(height: 22),
-          Consumer(
-            builder: (context, ref, child) {
-              ref.watch(themeModeProvider);
-              final isDark = Theme.of(context).brightness == Brightness.dark;
-              return SwitchListTile.adaptive(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                secondary: Icon(
-                  isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                  color: accent,
-                ),
-                title: const Text('အမှောင်ပုံစံ'),
-                subtitle: Text(isDark ? 'Dark mode' : 'Light mode'),
-                value: isDark,
-                onChanged: ref.read(themeModeProvider.notifier).setDark,
-              );
-            },
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: red,
-              side: const BorderSide(color: red),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            onPressed: () async {
-              final confirmed = await showDialog<bool>(
-                context: sheetContext,
-                builder: (dialogContext) => AlertDialog(
-                  title: const Text('အကောင့်မှ ထွက်မည်လား'),
-                  content: const Text(
-                    'နောက်တစ်ကြိမ် အသုံးပြုရန် အီးမေးလ်နှင့် စကားဝှက်ဖြင့် ပြန်ဝင်ရပါမည်။',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(dialogContext, false),
-                      child: const Text('မထွက်သေးပါ'),
-                    ),
-                    FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: red),
-                      onPressed: () => Navigator.pop(dialogContext, true),
-                      child: const Text('ထွက်မည်'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirmed == true && sheetContext.mounted) {
-                Navigator.pop(sheetContext, true);
-              }
-            },
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('အကောင့်မှ ထွက်မည်'),
-          ),
-        ],
+        ),
       ),
     ),
   );
@@ -1173,7 +1237,7 @@ class SectionTitle extends StatelessWidget {
       ),
       if (action != null)
         InkWell(
-          onTap: onTap,
+          onTap: withLightImpact(onTap),
           child: Padding(
             padding: const EdgeInsets.all(3),
             child: Text(
@@ -1201,7 +1265,7 @@ class QuickAction extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
-        onTap: () => showEntrySheet(context, type),
+        onTap: withLightImpact(() => showEntrySheet(context, type)),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
@@ -1323,7 +1387,7 @@ class ProductThumbnail extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => InkWell(
-    onTap: () async {
+    onTap: withLightImpact(() async {
       final messenger = ScaffoldMessenger.of(context);
       try {
         final selection = await ProductImagePicker.pick(context);
@@ -1349,7 +1413,7 @@ class ProductThumbnail extends ConsumerWidget {
           ),
         );
       }
-    },
+    }),
     borderRadius: BorderRadius.circular(14),
     child: Stack(
       clipBehavior: Clip.none,
@@ -1521,7 +1585,7 @@ class ImageSourceOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
+    onTap: withLightImpact(onTap),
     borderRadius: BorderRadius.circular(26),
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
@@ -1564,7 +1628,7 @@ class ProductImagePickerField extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: InkWell(
-      onTap: onTap,
+      onTap: withLightImpact(onTap),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         height: 92,
@@ -1776,7 +1840,11 @@ class ListPage extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                SectionTitle(count, action: '＋ ထည့်မည်', onTap: onAdd),
+                SectionTitle(
+                  count,
+                  action: '＋ ထည့်မည်',
+                  onTap: withLightImpact(onAdd),
+                ),
               ],
             ),
           ),
@@ -2025,10 +2093,12 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
                         ? const Icon(Icons.chevron_right_rounded)
                         : IconButton(
                             tooltip: 'ရက်ဖယ်ရှားရန်',
-                            onPressed: () => setState(() => debtDueDate = null),
+                            onPressed: withLightImpact(
+                              () => setState(() => debtDueDate = null),
+                            ),
                             icon: const Icon(Icons.close_rounded),
                           ),
-                    onTap: _pickDebtDueDate,
+                    onTap: withLightImpact(_pickDebtDueDate),
                   ),
                 ),
               ],
@@ -2040,14 +2110,14 @@ class _EntryFormSheetState extends ConsumerState<EntryFormSheet> {
                     backgroundColor: accent,
                     padding: const EdgeInsets.all(13),
                   ),
-                  onPressed: _save,
+                  onPressed: withLightImpact(_save),
                   child: const Text('သိမ်းမည်'),
                 ),
               ),
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: withLightImpact(() => Navigator.pop(context)),
                   child: const Text(
                     'ပယ်ဖျက်မည်',
                     style: TextStyle(color: muted),

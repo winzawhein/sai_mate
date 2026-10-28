@@ -11,11 +11,15 @@ import '../domain/shop_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
-final repositoryProvider = Provider<ShopRepository>(
-  (ref) => Supabase.instance.client.auth.currentUser == null
+final signedInUserProvider = Provider<String?>((ref) {
+  return ref.watch(authStateProvider).valueOrNull?.session?.user.id;
+});
+final repositoryProvider = Provider<ShopRepository>((ref) {
+  final userId = ref.watch(signedInUserProvider);
+  return userId == null
       ? InMemoryShopRepository()
-      : SupabaseShopRepository(Supabase.instance.client),
-);
+      : SupabaseShopRepository(Supabase.instance.client);
+});
 final authStateProvider = StreamProvider<AuthState>(
   (ref) => Supabase.instance.client.auth.onAuthStateChange,
 );
@@ -47,7 +51,7 @@ final customersProvider = Provider<List<Customer>>(
 class ShopController extends AsyncNotifier<ShopState> {
   ShopRepository get _repo => ref.read(repositoryProvider);
   @override
-  Future<ShopState> build() => _repo.load();
+  Future<ShopState> build() => ref.watch(repositoryProvider).load();
   String _id() => const Uuid().v4();
   Future<void> _publish(ShopState next) async {
     state = AsyncData(next);

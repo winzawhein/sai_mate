@@ -1,3 +1,5 @@
+import 'press_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -163,14 +165,14 @@ class ManagementForm extends StatelessWidget {
               width: double.infinity,
               child: FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: _green),
-                onPressed: onSave,
+                onPressed: withLightImpact(onSave),
                 child: const Text('ပြင်ဆင်သိမ်းမည်'),
               ),
             ),
             SizedBox(
               width: double.infinity,
               child: TextButton(
-                onPressed: () => _confirmDelete(context),
+                onPressed: withLightImpact(() => _confirmDelete(context)),
                 child: const Text(
                   'ဖျက်မည်',
                   style: TextStyle(color: Colors.red),
@@ -192,11 +194,11 @@ class ManagementForm extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: withLightImpact(() => Navigator.pop(context, false)),
             child: const Text('မဖျက်ပါ'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: withLightImpact(() => Navigator.pop(context, true)),
             child: const Text('ဖျက်မည်'),
           ),
         ],

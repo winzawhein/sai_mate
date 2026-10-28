@@ -1,3 +1,5 @@
+import 'press_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -185,7 +187,9 @@ class PurchaseCartSheet extends ConsumerWidget {
                             const SizedBox(width: 8),
                             IconButton.filledTonal(
                               tooltip: 'ပေးသွင်းသူအသစ် ထည့်ရန်',
-                              onPressed: () => _addSupplier(context, ref),
+                              onPressed: withLightImpact(
+                                () => _addSupplier(context, ref),
+                              ),
                               icon: const Icon(Icons.person_add_alt_1_rounded),
                             ),
                           ],
@@ -215,9 +219,11 @@ class PurchaseCartSheet extends ConsumerWidget {
                               backgroundColor: _green,
                               padding: const EdgeInsets.all(15),
                             ),
-                            onPressed: cart.isEmpty
-                                ? null
-                                : () => _checkout(context, ref, cart),
+                            onPressed: withLightImpact(
+                              cart.isEmpty
+                                  ? null
+                                  : () => _checkout(context, ref, cart),
+                            ),
                             child: const Text('အဝယ်အတည်ပြုမည်'),
                           ),
                         ),
@@ -289,11 +295,15 @@ class PurchaseCartSheet extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: withLightImpact(
+              () => Navigator.pop(dialogContext, false),
+            ),
             child: const Text('မလုပ်တော့ပါ'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: withLightImpact(
+              () => Navigator.pop(dialogContext, true),
+            ),
             child: const Text('ထည့်မည်'),
           ),
         ],
@@ -337,7 +347,7 @@ class PurchaseLineTile extends ConsumerWidget {
                   style: const TextStyle(color: _green),
                 ),
                 TextButton.icon(
-                  onPressed: () => _editCost(context, ref),
+                  onPressed: withLightImpact(() => _editCost(context, ref)),
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     visualDensity: VisualDensity.compact,
@@ -351,9 +361,11 @@ class PurchaseLineTile extends ConsumerWidget {
             ),
           ),
           IconButton(
-            onPressed: () => ref
-                .read(purchaseCartProvider.notifier)
-                .change(line.product.id, line.quantity - 1),
+            onPressed: withLightImpact(
+              () => ref
+                  .read(purchaseCartProvider.notifier)
+                  .change(line.product.id, line.quantity - 1),
+            ),
             icon: const Icon(Icons.remove_circle_outline),
           ),
           Text(
@@ -361,9 +373,11 @@ class PurchaseLineTile extends ConsumerWidget {
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           IconButton(
-            onPressed: () => ref
-                .read(purchaseCartProvider.notifier)
-                .change(line.product.id, line.quantity + 1),
+            onPressed: withLightImpact(
+              () => ref
+                  .read(purchaseCartProvider.notifier)
+                  .change(line.product.id, line.quantity + 1),
+            ),
             icon: const Icon(Icons.add_circle, color: _green),
           ),
         ],
@@ -387,12 +401,13 @@ class PurchaseLineTile extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: withLightImpact(() => Navigator.pop(dialogContext)),
             child: const Text('မလုပ်တော့ပါ'),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, int.tryParse(controller.text)),
+            onPressed: withLightImpact(
+              () => Navigator.pop(dialogContext, int.tryParse(controller.text)),
+            ),
             child: const Text('သတ်မှတ်မည်'),
           ),
         ],

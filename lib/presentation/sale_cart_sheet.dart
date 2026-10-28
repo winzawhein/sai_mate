@@ -1,3 +1,5 @@
+import 'press_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -85,60 +87,78 @@ class SaleCartSheet extends ConsumerWidget {
             color: Theme.of(context).colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          child: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 20, 12, 0),
-                child: FormHeading(
-                  title: 'အရောင်း Cart',
-                  icon: Icons.shopping_bag_rounded,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(cartRevision),
-                  initialValue: null,
-                  isExpanded: true,
-                  menuMaxHeight: 360,
-                  decoration: const InputDecoration(
-                    labelText: 'ပစ္စည်းထည့်ရန်',
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              inputDecorationTheme: Theme.of(context).inputDecorationTheme
+                  .copyWith(
+                    isDense: false,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                   ),
-                  items: availableProducts.values
-                      .map(
-                        (product) => DropdownMenuItem(
-                          value: product.id,
-                          child: Text(
-                            '${product.name} · ${product.stock} ကျန်',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (productId) {
-                    final product = availableProducts[productId];
-                    if (product != null) {
-                      ref.read(saleCartProvider.notifier).add(product);
-                    }
-                  },
-                ),
-              ),
-              Expanded(
-                child: cart.isEmpty
-                    ? const CartEmptyState(message: 'ရောင်းမည့်ပစ္စည်း ထည့်ပါ')
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(18),
-                        itemCount: cart.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) =>
-                            CartLineTile(line: cart[index]),
+              visualDensity: VisualDensity.standard,
+            ),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 20, 12, 0),
+                    child: FormHeading(
+                      title: 'အရောင်း Cart',
+                      icon: Icons.shopping_bag_rounded,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(cartRevision),
+                      initialValue: null,
+                      isExpanded: true,
+                      menuMaxHeight: 360,
+                      decoration: const InputDecoration(
+                        labelText: 'ပစ္စည်းထည့်ရန်',
                       ),
-              ),
-              Flexible(
-                flex: 2,
-                child: SingleChildScrollView(
-                  child: Container(
+                      items: availableProducts.values
+                          .map(
+                            (product) => DropdownMenuItem(
+                              value: product.id,
+                              child: Text(
+                                '${product.name} · ${product.stock} ကျန်',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (productId) {
+                        final product = availableProducts[productId];
+                        if (product != null) {
+                          ref.read(saleCartProvider.notifier).add(product);
+                        }
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: cart.isEmpty
+                        ? const CartEmptyState(
+                            message: 'ရောင်းမည့်ပစ္စည်း ထည့်ပါ',
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(18),
+                            itemCount: cart.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, index) =>
+                                CartLineTile(line: cart[index]),
+                          ),
+                  ),
+                  Container(
                     padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHigh,
@@ -173,9 +193,13 @@ class SaleCartSheet extends ConsumerWidget {
                             ),
                             Switch(
                               value: credit,
-                              onChanged: (value) =>
-                                  ref.read(saleCreditProvider.notifier).state =
-                                      value,
+                              onChanged: withSelectionImpact<bool>(
+                                (value) =>
+                                    ref
+                                            .read(saleCreditProvider.notifier)
+                                            .state =
+                                        value,
+                              ),
                             ),
                           ],
                         ),
@@ -195,11 +219,13 @@ class SaleCartSheet extends ConsumerWidget {
                               ),
                             ],
                             selected: {paymentMethod},
-                            onSelectionChanged: (values) =>
-                                ref
-                                    .read(salePaymentMethodProvider.notifier)
-                                    .state = values
-                                    .first,
+                            onSelectionChanged: withSelectionImpact(
+                              (values) =>
+                                  ref
+                                      .read(salePaymentMethodProvider.notifier)
+                                      .state = values
+                                      .first,
+                            ),
                           ),
                           const SizedBox(height: 10),
                         ],
@@ -266,33 +292,37 @@ class SaleCartSheet extends ConsumerWidget {
                           child: FilledButton(
                             style: FilledButton.styleFrom(
                               backgroundColor: _green,
-                              padding: const EdgeInsets.all(15),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 15,
+                              ),
                             ),
-                            onPressed:
-                                cart.isEmpty ||
-                                    (!credit &&
-                                        paymentMethod == 'cash' &&
-                                        received < total)
-                                ? null
-                                : () => _checkout(
-                                    context,
-                                    ref,
-                                    cart,
-                                    credit,
-                                    discount,
-                                    total,
-                                    received,
-                                    paymentMethod,
-                                  ),
+                            onPressed: withLightImpact(
+                              cart.isEmpty ||
+                                      (!credit &&
+                                          paymentMethod == 'cash' &&
+                                          received < total)
+                                  ? null
+                                  : () => _checkout(
+                                      context,
+                                      ref,
+                                      cart,
+                                      credit,
+                                      discount,
+                                      total,
+                                      received,
+                                      paymentMethod,
+                                    ),
+                            ),
                             child: const Text('အရောင်းအတည်ပြုမည်'),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -446,7 +476,7 @@ class SaleReceiptSheet extends StatelessWidget {
           ],
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: withLightImpact(() => Navigator.pop(context)),
             child: const Text('ပြီးပါပြီ'),
           ),
         ],
@@ -509,9 +539,11 @@ class CartLineTile extends ConsumerWidget {
             ),
           ),
           IconButton(
-            onPressed: () => ref
-                .read(saleCartProvider.notifier)
-                .change(line.product.id, line.quantity - 1),
+            onPressed: withLightImpact(
+              () => ref
+                  .read(saleCartProvider.notifier)
+                  .change(line.product.id, line.quantity - 1),
+            ),
             icon: const Icon(Icons.remove_circle_outline),
           ),
           Text(
@@ -519,11 +551,13 @@ class CartLineTile extends ConsumerWidget {
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           IconButton(
-            onPressed: line.quantity >= line.product.stock
-                ? null
-                : () => ref
-                      .read(saleCartProvider.notifier)
-                      .change(line.product.id, line.quantity + 1),
+            onPressed: withLightImpact(
+              line.quantity >= line.product.stock
+                  ? null
+                  : () => ref
+                        .read(saleCartProvider.notifier)
+                        .change(line.product.id, line.quantity + 1),
+            ),
             icon: const Icon(Icons.add_circle, color: _green),
           ),
         ],
